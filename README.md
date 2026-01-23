@@ -1,6 +1,6 @@
 <!-- 项目logo -->
 <p align="center">
-  <img src="doc/logo/logo.png" alt="Project Logo" width="200"/>
+  <a href="https://sinspired.github.io/subs-check-pro/"><img src="doc/logo/logo.png" alt="Project Logo" width="200"/></a>
 </p>
 <h1 align="center">Subs-Check⁺ PRO</h1>
 <p align="center" color="#6a737d">
