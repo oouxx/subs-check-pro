@@ -1,16 +1,20 @@
-# 通知渠道配置（Apprise）
+# 🔔 通知渠道配置（Apprise）
 
-支持 100+ 通知渠道，通过 Apprise 发送通知。
+📦 支持 100+ 通知渠道，通过 [Apprise](https://github.com/sinspired/apprise_vercel) 发送通知。
 
 - 中文文档镜像：[文档](https://sinspired.github.io/apprise_vercel/)
 
-## Vercel 部署
+## 🌐 Vercel 部署
 
-1. 点击此处一键部署：[vercel](https://vercel.com/new/clone?repository-url=https://github.com/sinspired/apprise_vercel)
-2. 部署后获取 API 链接，如 `https://projectName.vercel.app/notify`。
-3. 建议为 Vercel 项目设置自定义域名（国内访问 Vercel 可能受限）。
+点击下方按钮，一键部署到你的 `Vercel` 账户：
 
-## Docker 部署（不支持 arm/v7）
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/sinspired/apprise_vercel)
+
+部署后获取 API 链接，如 `https://projectName.vercel.app/notify`。
+
+建议为 Vercel 项目设置自定义域名（国内访问 Vercel 可能受限）。
+
+## 🐳 Docker 部署（不支持 arm/v7）
 
 ```bash
 # 基础运行
@@ -25,7 +29,7 @@ docker run --name apprise \
   -d caronc/apprise:latest
 ```
 
-## 配置示例（config.yaml）
+## 📝 配置示例（config.yaml）
 
 ```yaml
 # 配置通知渠道，将自动发送检测结果通知、新版本通知

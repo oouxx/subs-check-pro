@@ -15,12 +15,12 @@ export default function Home(): ReactNode {
           <div className={styles.heroContainer}>
             <h1 className={styles.title}>{siteConfig.title}</h1>
             <p className={styles.subtitle}>
-              极简、无服务器、一次接入覆盖 100+ 通知渠道
+              测活、测速、媒体解锁，代理检测工具，自动生成 mihomo 和 singbox 订阅
             </p>
 
             <div className={styles.actions}>
               <Link className={styles.primaryBtn} to="/docs/Home">
-                查看文档
+                使用说明
               </Link>
             </div>
           </div>

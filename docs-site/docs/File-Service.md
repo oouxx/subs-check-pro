@@ -1,10 +1,10 @@
-# 内置文件服务
+# 🌐 内置文件服务
 
 subs-check 会在测试完后保存三个文件到 `output` 目录中；`output` 目录中的所有文件会由 8199 端口提供文件服务。
 
-为方便使用 Cloudflare 隧道映射等方案在公网访问，本项目取消了对 `output` 文件夹的无限制访问。
+⚠️ 为方便使用 Cloudflare 隧道映射等方案在公网访问，本项目取消了对 `output` 文件夹的无限制访问。
 
-## 使用分享码分享（推荐）
+## 🔐 使用分享码分享（推荐）
 
 设置 `share-password`，使用分享码进行分享。可分享 `/output` 目录的文件，比如 `all.yaml`、`mihomo.yaml`：
 
@@ -20,7 +20,7 @@ share-password: ""
 
 ![share-with-password](https://raw.githubusercontent.com/sinspired/subs-check-pro/main/doc/images/share-with-password.png)
 
-## 无密码保护分享（内网/少量文件）
+## 🗂️ 无密码保护分享（内网/少量文件）
 
 将文件放入 `output/more`：通过 `http://127.0.0.1:8199/more/文件名` 直接访问。
 

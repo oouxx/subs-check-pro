@@ -1,8 +1,8 @@
-# 安装与部署
+# 🛠️ 安装与部署
 
 > 首次运行会在当前目录生成默认配置文件。
 
-## 二进制文件运行
+## 📦 二进制文件运行
 
 下载 Releases 中适合的版本，解压后直接运行即可。
 
@@ -10,7 +10,7 @@
 ./subs-check.exe -f ./config/config.yaml
 ```
 
-## 源码运行
+## 🖥️ 源码运行
 
 欢迎提交 PR
 
@@ -21,7 +21,7 @@ cd subs-check-pro
 go run . -f ./config/config.yaml
 ```
 
-## Docker 运行
+## 🐳 Docker 运行
 
 > 注意：
 >
@@ -52,7 +52,7 @@ docker run -d \
   ghcr.io/sinspired/subs-check:latest
 ```
 
-## Docker Compose
+## 📜 Docker Compose
 
 ```yaml
 version: "3"
@@ -75,7 +75,7 @@ services:
     network_mode: bridge
 ```
 
-## 使用 WatchTower 自动更新并通知
+## 🔁 使用 WatchTower 自动更新并通知
 
 ### 基础命令，每小时检查更新
 
@@ -111,6 +111,6 @@ docker run -d \
   containrrr/watchtower subs-check
 ```
 
-## 安卓手机运行subs-check教程
+## 📱 安卓手机运行subs-check教程
 
 参考教程 [安卓手机运行subs-check教程](android)

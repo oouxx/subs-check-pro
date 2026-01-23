@@ -24,7 +24,7 @@
 
 ![preview](https://raw.githubusercontent.com/sinspired/subs-check-pro/main/doc/images/login-white.png)
 
-- Docker（最简）：
+- 🐳 Docker（最简）：
 
 ```bash
 docker run -d \

@@ -1,4 +1,6 @@
 :root {
+  --accent: #0ea5a0;
+  --accent-light: #09c7c1;
   --feather-text: #111111;
   --feather-text-dim: #666666;
   --feather-bg: #ffffff;
@@ -6,7 +8,7 @@
   --feather-border: #eaeaea;
   --feather-border-strong: #d1d1d1;
 
-  --ifm-color-primary: #000000; /* 主色调改为黑色，符合极简风格 */
+  --ifm-color-primary: #00707a; /* 主色调改为黑色，符合极简风格 */
 }
 
 html[data-theme='dark'] {
@@ -17,7 +19,7 @@ html[data-theme='dark'] {
   --feather-border: #333333;
   --feather-border-strong: #555555;
 
-  --ifm-color-primary: #ffffff;
+  --ifm-color-primary: #00989e;
 }
 
 /* 通用图标样式 */
@@ -79,7 +81,25 @@ html[data-theme='dark'] {
   mask-image: url('/img/icons/chat.svg');
 }
 
+.sidebar-icon-cf .menu__link::before {
+  -webkit-mask-image: url('/img/icons/cf.svg');
+  mask-image: url('/img/icons/cf.svg');
+}
 
+.sidebar-icon-link .menu__link::before {
+  -webkit-mask-image: url('/img/icons/link.svg');
+  mask-image: url('/img/icons/link.svg');
+}
+
+.sidebar-icon-apprise .menu__link::before {
+  -webkit-mask-image: url('/img/icons/apprise.svg');
+  mask-image: url('/img/icons/apprise.svg');
+}
+
+.sidebar-icon-settings .menu__link::before {
+  -webkit-mask-image: url('/img/icons/settings.svg');
+  mask-image: url('/img/icons/settings.svg');
+}
 
 /* 覆盖 Docusaurus 默认页脚样式 */
 .footer {
