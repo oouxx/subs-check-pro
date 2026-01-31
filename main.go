@@ -4,7 +4,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"log/slog"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 
 	"github.com/sinspired/subs-check-pro/app"
@@ -16,6 +19,14 @@ var (
 )
 
 func main() {
+	// 启动 pprof 监听服务，通常使用 6060 端口
+	go func() {
+		log.Println("Starting pprof server on :6060")
+		if err := http.ListenAndServe("0.0.0.0:6060", nil); err != nil {
+			log.Fatalf("pprof server failed: %v", err)
+		}
+	}()
+
 	// 解析命令行参数
 	flag.Parse()
 
