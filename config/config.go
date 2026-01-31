@@ -91,7 +91,7 @@ type Config struct {
 	// 新增 singbox的ios版本停留在1.11，这里进行兼容
 	SingboxLatest SingBoxConfig `yaml:"singbox-latest"`
 	SingboxOld    SingBoxConfig `yaml:"singbox-old"`
-	GCThreshold   int           `yaml:"gc-threshold"`
+	GCThreshold   int64         `yaml:"gc-threshold"`
 }
 
 var OriginDefaultConfig = &Config{
