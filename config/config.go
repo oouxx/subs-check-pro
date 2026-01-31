@@ -91,6 +91,7 @@ type Config struct {
 	// 新增 singbox的ios版本停留在1.11，这里进行兼容
 	SingboxLatest SingBoxConfig `yaml:"singbox-latest"`
 	SingboxOld    SingBoxConfig `yaml:"singbox-old"`
+	GCThreshold   int           `yaml:"gc-threshold"`
 }
 
 var OriginDefaultConfig = &Config{
@@ -110,6 +111,7 @@ var OriginDefaultConfig = &Config{
 	EnableSelfUpdate: true,
 	CronCheckUpdate:  "0 0,9,21 * * *",
 	// ISPCheck:    true,
+	GCThreshold: 5000,
 }
 
 // GlobalConfig 指向当前生效配置
