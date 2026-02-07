@@ -9,8 +9,10 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"time"
 
 	"github.com/sinspired/subs-check-pro/app"
+	"mosn.io/holmes"
 )
 
 // 命令行参数
@@ -26,7 +28,7 @@ func main() {
 			log.Fatalf("pprof server failed: %v", err)
 		}
 	}()
-
+	go holmesMonitor()
 	// 解析命令行参数
 	flag.Parse()
 
@@ -42,4 +44,19 @@ func main() {
 	}
 
 	application.Run()
+}
+
+func holmesMonitor() {
+	h, _ := holmes.New(
+		holmes.WithCollectInterval("5s"),
+		holmes.WithDumpPath("/app/output"),
+		holmes.WithTextDump(),
+		holmes.WithMemDump(30, 25, 80, time.Minute),
+		holmes.WithCGroup(true), // set cgroup to true when using docker or k8s
+	)
+
+	h.EnableMemDump()
+
+	// start the metrics collect and dump loop
+	h.Start()
 }
