@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	proxyutils "github.com/sinspired/subs-check-pro/proxy"
 
@@ -40,6 +42,11 @@ func NewConfigSaver(results []check.Result) *ConfigSaver {
 		categories: []ProxyCategory{
 			{
 				Name:    "all.yaml",
+				Proxies: make([]map[string]any, 0),
+				Filter:  func(result check.Result) bool { return true },
+			},
+			{
+				Name:    "custom.yaml", //自定义clash模版，不经过sub-store
 				Proxies: make([]map[string]any, 0),
 				Filter:  func(result check.Result) bool { return true },
 			},
@@ -174,6 +181,40 @@ func (cs *ConfigSaver) saveCategory(category ProxyCategory) error {
 		// 只在 all.yaml 和 local时，更新substore
 		if config.GlobalConfig.SaveMethod == "local" && config.GlobalConfig.SubStorePort != "" {
 			utils.UpdateSubStore(yamlData)
+		}
+		return nil
+	}
+	if category.Name == "custom.yaml" {
+		// 1. 准备基础数据 map
+		baseData := map[string]any{
+			"proxies": category.Proxies,
+		}
+
+		if config.GlobalConfig.MihomoOverwriteURL != "" {
+			// 2. 发起网络请求获取远程 YAML
+			client := http.Client{Timeout: 10 * time.Second}
+			resp, err := client.Get(config.GlobalConfig.MihomoOverwriteURL)
+			if err == nil && resp.StatusCode == http.StatusOK {
+				defer resp.Body.Close()
+
+				remoteBody, _ := io.ReadAll(resp.Body)
+				var remoteData map[string]any
+
+				// 3. 解析远程 YAML
+				if err := yaml.Unmarshal(remoteBody, &remoteData); err == nil {
+					// 4. 合并数据：遍历远程数据并覆盖/写入基础数据
+					maps.Copy(baseData, remoteData)
+				}
+			}
+		}
+
+		// 5. 最后统一进行序列化
+		yamlData, err := yaml.Marshal(baseData)
+		if err != nil {
+			return fmt.Errorf("序列化yaml %s 失败: %w", category.Name, err)
+		}
+		if err := cs.saveMethod(yamlData, category.Name); err != nil {
+			return fmt.Errorf("保存 %s 失败: %w", category.Name, err)
 		}
 		return nil
 	}

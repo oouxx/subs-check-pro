@@ -21,6 +21,7 @@ require (
 	github.com/sinspired/checkip v0.2.15
 	github.com/sinspired/go-selfupdate v0.0.0-20260104181938-4b5a1c65f213
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
+	mosn.io/holmes v1.1.0
 )
 
 require (
@@ -162,6 +163,5 @@ require (
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	mosn.io/api v0.0.0-20210204052134-5b9a826795fd // indirect
-	mosn.io/holmes v1.1.0 // indirect
 	mosn.io/pkg v0.0.0-20211217101631-d914102d1baf // indirect
 )

@@ -26,3 +26,6 @@ speed_*.csv
 *.exe
 *.syso
 .wiki/
+
+app
+output
