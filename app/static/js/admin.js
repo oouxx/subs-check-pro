@@ -450,22 +450,22 @@
    * 恢复历史区域 UI (当离开 Prepare 阶段时调用)
    * 负责：恢复标题、隐藏准备数据行、显示正常历史数据行
    */
-  function restoreHistoryTitle() {
-    // 1. 恢复标题
+function restoreHistoryTitle() {
+    // 1. 恢复标题文字
     if (els.historyTitle) {
       els.historyTitle.textContent = '上次检测'
     }
 
-    // 2. 隐藏临时的订阅数据行
+    // 2. 隐藏订阅获取阶段的临时数据行
     const prepLine = document.getElementById('prepare-line')
     if (prepLine) {
       prepLine.style.display = 'none'
     }
 
-    // 3. 恢复显示正常的历史数据行
-    if (els.historyLine) {
-      els.historyLine.style.display = 'none'
-    }
+    // 不操作 historyLine，也不重置 _lastKey。
+    // historyLine 的显示状态完全交由 showLastCheckResult 管理：
+    // - hideLastCheckResult（整体隐藏时）会重置 _lastKey，确保恢复时能重新渲染
+    // - 平时轮询时 _lastKey 保持有效，showLastCheckResult 直接跳过，无闪烁
   }
 
   // ==================== API 通信 ====================
@@ -713,30 +713,10 @@
         }
 
         // 显示真正的历史记录
-        if (lastChecked) {
-          showLastCheckResult({
-            lastCheckTime: d.lastCheck.time || d.lastCheck.timestamp,
-            duration: d.lastCheck.duration,
-            total: d.lastCheck.total || d.proxyCount,
-            available: d.lastCheck.available || d.available
-          })
+        if (lastChecked || checkStartTime) {
           checkStartTime = null
-        } else if (checkStartTime && lastCheckInfo) {
-          // 内存中的最后一次
-          const duration = Math.round((Date.now() - checkStartTime) / 1000)
-          showLastCheckResult({
-            lastCheckTime: new Date()
-              .toISOString()
-              .replace('T', ' ')
-              .split('.')[0],
-            duration: duration,
-            total: d.proxyCount || lastCheckInfo.total,
-            available: d.available || lastCheckInfo.available
-          })
-          checkStartTime = null
-        } else if (lastCheckInfo) {
-          showLastCheckResult(lastCheckInfo)
-        } else {
+        } else if (!lastCheckInfo) {
+          // syncHistoryFromYaml 尚未拿到数据时，才由此兜底显示空状态
           showLastCheckResult(null)
         }
       }
@@ -1111,8 +1091,9 @@
           els.successText.classList.remove('success-highlight')
           els.successText.textContent = ''
         }
-        if (lastCheckInfo) showLastCheckResult(lastCheckInfo)
-        else showLastCheckResult(null)
+        // 历史记录由 syncHistoryFromYaml 统一负责渲染，
+        // 此处只确保容器可见，不主动写入内容，避免闪烁
+        if (els.historyPlaceholder) els.historyPlaceholder.style.display = ''
       } else {
         hideLastCheckResult()
       }
@@ -1124,37 +1105,40 @@
   /**
      * 从 YAML 同步历史数据
      */
-  async function syncHistoryFromYaml() {
+async function syncHistoryFromYaml() {
     if (!sessionKey) return
     try {
       const r = await sfetch(API.analysis)
 
-      // 如果 API 返回失败，或者 report 内容为空
       if (
         !r.ok ||
         !r.payload ||
         !r.payload.report ||
         r.payload.report.trim() === ''
       ) {
+        showLastCheckResult._lastKey = undefined
         showLastCheckResult(null)
         const summaryCard = $('#analysisSummaryCard')
         if (summaryCard) {
           summaryCard.style.display = 'none'
-          summaryCard.innerHTML = "" // 彻底清空
+          summaryCard.innerHTML = ''
         }
         cachedHistoryData = null
-        cachedSummaryText = null // 清除内容缓存字符串
+        cachedSummaryText = null
         return
       }
 
-      // 1. 原始文本比对：如果 YAML 字符串未改变，直接退出
+      // 原始文本未变化：数据没变，但 historyLine 可能被 restoreHistoryTitle 隐藏了，
+      // 仍需调用 showLastCheckResult 让它根据 _lastKey 决定是否重新显示
       if (cachedHistoryData === r.payload.report) {
+        if (lastCheckInfo) showLastCheckResult(lastCheckInfo)
         return
       }
       cachedHistoryData = r.payload.report
 
       const data = window.YAML.parse(r.payload.report)
       if (!data) {
+        showLastCheckResult._lastKey = undefined
         showLastCheckResult(null)
         return
       }
@@ -1162,7 +1146,6 @@
       const info = data.check_info || {}
       const global = data.global_analysis || {}
 
-      // 构造新的基础信息对象
       const newInfo = {
         lastCheckTime: info.check_time,
         duration: info.check_duration,
@@ -1170,27 +1153,29 @@
         available: global.alive_count
       }
 
-      // 2. 深度内容比对：将对象转为字符串判断内容是否变化
-      const newSummaryString = JSON.stringify(newInfo);
+      const newSummaryString = JSON.stringify(newInfo)
       if (cachedSummaryText !== newSummaryString) {
         showLastCheckResult(newInfo)
-        cachedSummaryText = newSummaryString // 更新内容缓存
-        lastCheckInfo = newInfo // 更新全局变量
+        cachedSummaryText = newSummaryString
+        lastCheckInfo = newInfo
+      } else {
+        // 内容相同但 _lastKey 可能被重置，仍需补调
+        showLastCheckResult(lastCheckInfo)
       }
 
-      // 3. 渲染详细摘要
       if (data && (data.global_analysis || data.summary)) {
-        renderAnalysisSummary(data);
+        renderAnalysisSummary(data)
       } else {
-        const summaryCard = $('#analysisSummaryCard');
+        const summaryCard = $('#analysisSummaryCard')
         if (summaryCard) {
-          summaryCard.style.display = 'none';
-          summaryCard.innerHTML = "";
+          summaryCard.style.display = 'none'
+          summaryCard.innerHTML = ''
         }
       }
 
     } catch (e) {
       console.error('YAML Sync Error:', e)
+      showLastCheckResult._lastKey = undefined
       showLastCheckResult(null)
     }
   }
@@ -1231,6 +1216,13 @@
   function showLastCheckResult(info) {
     if (!els.historyPlaceholder) return
 
+    // 缓存上次的显示状态，相同数据直接跳过，避免无意义 DOM 切换导致闪烁
+    const infoKey = info
+      ? JSON.stringify({ t: info.lastCheckTime, a: info.available, tot: info.total })
+      : 'null'
+    if (showLastCheckResult._lastKey === infoKey) return
+    showLastCheckResult._lastKey = infoKey
+
     let notFoundEl = document.getElementById('historyNotFound')
     if (!notFoundEl) {
       notFoundEl = document.createElement('div')
@@ -1255,25 +1247,24 @@
         notFoundEl.style.display = 'none'
         if (els.historyLine) els.historyLine.style.display = 'block'
 
-        // 计算友好显示文本（时间格式化、时长格式化等）
         const prettyTime = (() => {
           try {
-            const dt = info.lastCheckTime ? new Date(String(info.lastCheckTime).replace(' ', 'T')) : null;
+            const dt = info.lastCheckTime ? new Date(String(info.lastCheckTime).replace(' ', 'T')) : null
             return dt && !isNaN(dt)
               ? dt.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
-              : (info.lastCheckTime || '-');
+              : (info.lastCheckTime || '-')
           } catch (e) {
-            return info.lastCheckTime || '未知';
+            return info.lastCheckTime || '未知'
           }
-        })();
+        })()
 
         const prettyDuration = (typeof info.duration === 'number')
-          ? (info.duration >= 3600 // 超过 60 分钟（3600 秒）
+          ? (info.duration >= 3600
             ? Math.floor(info.duration / 60) + '分'
             : (info.duration >= 60
               ? Math.floor(info.duration / 60) + '分' + (info.duration % 60) + '秒'
               : info.duration + '秒'))
-          : (info.duration || '0');
+          : (info.duration || '0')
 
         const prettyTotal = (typeof info.total === 'number')
           ? (info.total >= 1000000
@@ -1281,7 +1272,7 @@
             : (info.total >= 10000
               ? (info.total / 10000).toFixed(1) + '万'
               : info.total))
-          : (info.total || '0');
+          : (info.total || '0')
 
         const mapping = {
           historyLastTime: prettyTime,
@@ -1290,13 +1281,12 @@
           historyLastAvailable: info.available
         }
 
-        // 文本未变化时不操作 DOM，杜绝闪烁
         for (const [id, val] of Object.entries(mapping)) {
           const el = document.getElementById(id)
           if (el) {
-            const stringVal = String(val || '0');
+            const stringVal = String(val || '0')
             if (el.textContent !== stringVal) {
-              el.textContent = stringVal;
+              el.textContent = stringVal
             }
           }
         }
@@ -1306,9 +1296,9 @@
     }
   }
 
-/**
-   * 结构化渲染分析摘要 - 层次化精炼版
-   */
+  /**
+     * 结构化渲染分析摘要 - 层次化精炼版
+     */
   function renderAnalysisSummary(data) {
     const summaryCard = $('#analysisSummaryCard');
     if (!summaryCard || !data) return;
@@ -1337,10 +1327,10 @@
     const aiRaw = rawSummary.match(/AI 解锁\[(.*?)\]/)?.[1] || "";
 
     // --- 样式辅助函数 ---
-    
+
     // 生成不换行的标签 [ 地区 ]
     const tagWrap = (cls, text) => `<span style="white-space: nowrap; display: inline-block;">[ <span class="${cls} tag-list">${text}</span> ]</span>`;
-    
+
     // 核心改进：锁定“标题”与“标签”作为一个不换行的整体，确保“覆盖：[ 地区 ]”永远在同一行
     const labelTagBond = (label, tagHtml) => `
       <span style="white-space: nowrap; display: inline-block; vertical-align: baseline;">
@@ -1357,7 +1347,7 @@
 
     if (hasGeo || hasProto) {
       let content = "";
-      
+
       if (hasGeo) {
         content += labelTagBond('覆盖：', tagWrap('tag-location', '地区'));
         content += listSpan(geoKeys.join(', '));
@@ -1462,6 +1452,8 @@
    */
   function hideLastCheckResult() {
     if (els.historyPlaceholder) els.historyPlaceholder.style.display = 'none'
+    // 重置 key 缓存：容器被隐藏后，下次显示时必须重新渲染
+    showLastCheckResult._lastKey = undefined
   }
 
   // ==================== 日志渲染 ====================
