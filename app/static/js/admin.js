@@ -56,6 +56,7 @@
     fileManagerBtn: $('#file-manager'),
     btnFiles: $('#btnFiles'),
     analysisBtn: $('#analysisBtn'),
+    btnAnalysis: $('#btnAnalysis'),
     projectInfoBtn: $('#project-info'),
     downloadLogsBtnSide: $('#downloadLogsBtnSide'),
     searchBtn: $('#searchBtn'),
@@ -458,7 +459,7 @@
   function restoreHistoryTitle() {
     // 1. 恢复标题文字
     if (els.historyTitle) {
-      els.historyTitle.textContent = '上次检测'
+      els.historyTitle.textContent = ''
     }
 
     // 2. 隐藏订阅获取阶段的临时数据行
@@ -2427,6 +2428,13 @@
     });
 
     els.analysisBtn?.addEventListener('click', () => {
+      // 打开新标签前，将当前 sessionKey 写入 localStorage
+      // 使 analysis.html 可以跨标签读取（无论是否勾选"记住密钥"）
+      if (sessionKey) safeLS('subscheck_api_key', sessionKey);
+      window.open('/analysis', '_blank', 'noopener,noreferrer');
+    });
+
+    els.btnAnalysis?.addEventListener('click', () => {
       // 打开新标签前，将当前 sessionKey 写入 localStorage
       // 使 analysis.html 可以跨标签读取（无论是否勾选"记住密钥"）
       if (sessionKey) safeLS('subscheck_api_key', sessionKey);

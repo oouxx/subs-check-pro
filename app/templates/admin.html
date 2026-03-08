@@ -259,17 +259,26 @@
 
               <!-- 历史记录占位（当进度被隐藏时显示） -->
               <div id="historyPlaceholder" class="history-placeholder" style="display:none;">
-                <div class="history-title-row"
-                  style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                <div class="history-title-row" style="display:flex;align-items:center;justify-content:space-between">
                   <div id="history-title" class="history-title"
                     style="font-weight:600;font-size:13px;color:var(--muted)">上次检测</div>
-                  <div style="margin-left:14px">
+                  <div class="mobileBtns">
                     <button id="btnFiles" class="btn small" title="查看订阅文件、分享入口及公共规则文件">
                       <svg class="sidebar-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
                       </svg>
                       文件
+                    </button>
+                    <button id="btnAnalysis" class="btn small" title="查看节点检测分析报告">
+                      <svg class="sidebar-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="20" x2="18" y2="10" />
+                        <line x1="12" y1="20" x2="12" y2="4" />
+                        <line x1="6" y1="20" x2="6" y2="14" />
+                        <line x1="2" y1="20" x2="22" y2="20" />
+                      </svg>
+                      报告
                     </button>
                     <button id="btnSubStore" class="btn small" title="进入sub-store，编辑、管理、分享订阅">
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" class="btn-icon icon-small"

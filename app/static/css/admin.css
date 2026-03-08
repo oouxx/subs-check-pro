@@ -835,6 +835,9 @@ main {
   color: var(--muted);
 }
 
+.mobileBtns{
+  gap:0;
+}
 .history-summary {
   display: flex;
   justify-content: space-between;
@@ -1091,7 +1094,8 @@ main {
 #btnlogoutMobile,
 #btnShare,
 #btnSubStore,
-#btnFiles {
+#btnFiles,
+#btnAnalysis {
   display: none;
 }
 
@@ -1978,7 +1982,8 @@ main {
   #btnlogoutMobile,
   #btnShare,
   #btnSubStore,
-  #btnFiles {
+  #btnFiles,
+  #btnAnalysis {
     display: inline-block;
   }
 
