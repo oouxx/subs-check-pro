@@ -1875,7 +1875,17 @@ import { initQuickPreview } from './cfg-quickpreview.js';
       showToast('验证成功，已登录', 'success')
 
       // 初始化配置快速预览
-      const qp = initQuickPreview(() => sessionKey);
+      const qp = initQuickPreview(
+        () => sessionKey,
+        () => {
+          if (editorMode === 'form') {
+            return collectConfigForm();           // 读取表单当前值
+          } else {
+            const src = codeMirrorView?.state.doc.toString() || _rawConfigYaml;
+            try { return window.YAML.parse(src); } catch (e) { return null; }
+          }
+        }
+      );
       qp?.enable();
     } catch (e) {
       showToast('网络错误或服务器未响应', 'error')
@@ -2834,7 +2844,17 @@ import { initQuickPreview } from './cfg-quickpreview.js';
           startPollers()
           showToast('自动登录成功', 'success')
           // 初始化配置快速预览
-          const qp = initQuickPreview(() => sessionKey);
+          const qp = initQuickPreview(
+            () => sessionKey,
+            () => {
+              if (editorMode === 'form') {
+                return collectConfigForm();           // 读取表单当前值
+              } else {
+                const src = codeMirrorView?.state.doc.toString() || _rawConfigYaml;
+                try { return window.YAML.parse(src); } catch (e) { return null; }
+              }
+            }
+          );
           qp?.enable();
         } else {
           throw new Error('auth failed')
