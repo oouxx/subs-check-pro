@@ -503,7 +503,16 @@
 
         <nav class="cfg-tab-bar" id="cfgTabBar" role="tablist" aria-label="配置分类">
 
-          <button class="cfg-tab active" data-tab="subscriptions" role="tab" aria-selected="true">
+          <button class="cfg-tab active" data-tab="schedule" role="tab" aria-selected="true">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            <span>任务</span>
+          </button>
+
+          <button class="cfg-tab" data-tab="subscriptions" role="tab" aria-selected="false">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-linecap="round" stroke-linejoin="round">
               <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
@@ -520,13 +529,14 @@
             <span>检测</span>
           </button>
 
-          <button class="cfg-tab" data-tab="schedule" role="tab" aria-selected="false">
+          <button class="cfg-tab" data-tab="storage" role="tab" aria-selected="false">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
+              <ellipse cx="12" cy="5" rx="9" ry="3" />
+              <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
             </svg>
-            <span>任务</span>
+            <span>存储</span>
           </button>
 
           <button class="cfg-tab" data-tab="notify" role="tab" aria-selected="false">
@@ -536,16 +546,6 @@
               <path d="M13.73 21a2 2 0 0 1-3.46 0" />
             </svg>
             <span>通知</span>
-          </button>
-
-          <button class="cfg-tab" data-tab="storage" role="tab" aria-selected="false">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-linecap="round" stroke-linejoin="round">
-              <ellipse cx="12" cy="5" rx="9" ry="3" />
-              <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
-              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-            </svg>
-            <span>存储</span>
           </button>
 
           <button class="cfg-tab" data-tab="advanced" role="tab" aria-selected="false">
@@ -569,8 +569,8 @@
         <!-- 表单面板容器（对应 6 个 tab） -->
 
         <div class="cfg-panels-wrap" id="cfgPanels">
-          <!-- 订阅 — 初始激活，含 loading 占位 -->
-          <div class="cfg-panel active" id="panel-subscriptions" role="tabpanel">
+          <!-- 任务 — 新的初始激活面板 -->
+          <div class="cfg-panel active" id="panel-schedule" role="tabpanel">
             <div class="cfg-loading">
               <svg class="cfg-loading-spin" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
@@ -579,12 +579,13 @@
               <span>登录后加载配置…</span>
             </div>
           </div>
+          <div class="cfg-panel" id="panel-subscriptions" role="tabpanel"></div>
           <div class="cfg-panel" id="panel-detection" role="tabpanel"></div>
-          <div class="cfg-panel" id="panel-schedule" role="tabpanel"></div>
-          <div class="cfg-panel" id="panel-notify" role="tabpanel"></div>
           <div class="cfg-panel" id="panel-storage" role="tabpanel"></div>
+          <div class="cfg-panel" id="panel-notify" role="tabpanel"></div>
           <div class="cfg-panel" id="panel-advanced" role="tabpanel"></div>
         </div>
+
         <!-- ══ YAML 编辑器视图（默认隐藏）══ -->
         <div class="editor-wrapper" id="editorWrapper" style="display:none; flex:1 1 auto; min-height:0;">
           <div id="configEditor" aria-label="配置编辑" spellcheck="false" aria-placeholder="# 配置将于登录后加载..."></div>

@@ -17,8 +17,38 @@
  */
 
 const SCHEMA = [
+  /* ── 1. 任务 ──────────────────── */
+  {
+    tab: 'schedule',
+    sections: [
+      {
+        title: '检测计划',
+        fields: [
+          { key: 'cron-expression', label: 'Cron 表达式', type: 'cron', fullWidth: true, placeholder: '0 4,16 * * *', hint: '优先级高于检测间隔；推荐凌晨 4 点和 16 点执行' },
+          { key: 'check-interval', label: '检测间隔 (分钟)', type: 'number', min: 1, placeholder: '720', hint: 'Cron 为空时生效；建议 720–1440' },
+        ],
+      },
+      {
+        title: '代理设置',
+        fields: [
+          {
+            key: 'system-proxy', label: '系统代理', type: 'text', fullWidth: true,
+            placeholder: 'http://127.0.0.1:10808',
+            hint: '用于拉取订阅和推送通知；direct = 强制直连不使用代理；留空则自动检测。',
+          },
+          {
+            key: 'github-proxy', label: 'GitHub 代理', type: 'text', fullWidth: true,
+            placeholder: 'https://ghfast.top/',
+            hint: '加速 GitHub Release 下载；国内强烈建议配置',
+            links: [{ label: '自建 CF 代理', href: 'https://github.com/sinspired/CF-Proxy', icon: 'github' }],
+          },
+          { key: 'ghproxy-group', label: 'GitHub 代理列表', type: 'url-list', hint: '程序自动筛选可用代理，优先级低于 github-proxy' },
+        ],
+      },
+    ],
+  },
 
-  /* ── 1. 订阅 ────────────────────────────── */
+  /* ── 2. 订阅 ────────────────────────────── */
   {
     tab: 'subscriptions',
     sections: [
@@ -29,6 +59,22 @@ const SCHEMA = [
           { key: 'sub-urls-retry', label: '重试次数', type: 'number', min: 1, max: 5, placeholder: '3', hint: '获取订阅失败后的重试次数' },
           { key: 'sub-urls-timeout', label: '请求超时 (s)', type: 'number', min: 5, max: 60, placeholder: '10', hint: '网络差可调大，建议 10–60' },
           { key: 'success-rate', label: '成功率阈值 (%)', type: 'number', min: 0.01, max: 100, placeholder: '0', hint: '低于此值将把订阅标记为失效（存储值 0–1，界面显示 0–100%）' },
+        ],
+      },
+      {
+        title: '订阅处理',
+        fields: [
+          {
+            key: 'threshold', label: '相似度阈值', type: 'select', numericOptions: true,
+            selectWidth: '500px',
+            hint: '按网段乱序去重',
+            options: [
+              { value: '1.00', label: '1.00 — /32' },
+              { value: '0.75', label: '0.75 — /24' },
+              { value: '0.50', label: '0.50 — /16' },
+              { value: '0.25', label: '0.25 — /8' },
+            ],
+          },
         ],
       },
       {
@@ -52,7 +98,7 @@ const SCHEMA = [
     ],
   },
 
-  /* ── 2. 检测 ────────────────────────────────── */
+  /* ── 3. 检测 ────────────────────────────────── */
   {
     tab: 'detection',
     sections: [
@@ -124,87 +170,7 @@ const SCHEMA = [
     ],
   },
 
-  /* ── 3. 任务 ──────────────────── */
-  {
-    tab: 'schedule',
-    sections: [
-      {
-        title: '检测计划',
-        fields: [
-          { key: 'cron-expression', label: 'Cron 表达式', type: 'cron', fullWidth: true, placeholder: '0 4,16 * * *', hint: '优先级高于检测间隔；推荐凌晨 4 点和 16 点执行' },
-          { key: 'check-interval', label: '检测间隔 (分钟)', type: 'number', min: 1, placeholder: '720', hint: 'Cron 为空时生效；建议 720–1440' },
-          { key: 'print-progress', label: '终端显示进度', type: 'toggle' },
-          {
-            key: 'progress-mode', label: '进度条模式', type: 'select',
-            selectWidth: '500px',
-            options: [
-              { value: 'auto', label: '自动 (auto)' },
-              { value: 'stage', label: '分阶段 (stage)' },
-            ],
-          },
-        ],
-      },
-      {
-        title: '节点输出控制',
-        fields: [
-          {
-            key: 'threshold', label: '相似度阈值', type: 'select', numericOptions: true,
-            selectWidth: '500px',
-            hint: '按网段乱序去重',
-            options: [
-              { value: '1.00', label: '1.00 — /32' },
-              { value: '0.75', label: '0.75 — /24' },
-              { value: '0.50', label: '0.50 — /16' },
-              { value: '0.25', label: '0.25 — /8' },
-            ],
-          },
-        ],
-      },
-      {
-        title: '代理设置',
-        fields: [
-          {
-            key: 'system-proxy', label: '系统代理', type: 'text', fullWidth: true,
-            placeholder: 'http://127.0.0.1:10808',
-            hint: '用于拉取订阅和推送通知；direct = 强制直连不使用代理；留空则自动检测。',
-          },
-          {
-            key: 'github-proxy', label: 'GitHub 代理', type: 'text', fullWidth: true,
-            placeholder: 'https://ghfast.top/',
-            hint: '加速 GitHub Release 下载；国内强烈建议配置',
-            links: [{ label: '自建 CF 代理', href: 'https://github.com/sinspired/CF-Proxy', icon: 'github' }],
-          },
-          { key: 'ghproxy-group', label: 'GitHub 代理列表', type: 'url-list', hint: '程序自动筛选可用代理，优先级低于 github-proxy' },
-        ],
-      },
-    ],
-  },
-
-  /* ── 4. 通知 ─────────────────────────────────────────── */
-  {
-    tab: 'notify',
-    sections: [
-      {
-        title: 'Apprise 通知',
-        fields: [
-          { key: 'notify-title', label: '通知标题', type: 'text', placeholder: '🔔 节点状态更新' },
-          {
-            key: 'apprise-api-server', label: 'Apprise API 地址', type: 'text', fullWidth: true,
-            placeholder: 'https://apprise.example.com/notify',
-            hint: '内置服务或自建实例的 notify 接口',
-            links: [{ label: '部署通知服务', href: 'https://github.com/sinspired/apprise_vercel', icon: 'github' }],
-          },
-          {
-            key: 'recipient-url', label: '通知渠道', type: 'url-list',
-            hint: '支持 tgram:// bark:// mailto:// ntfy:// 等 Apprise 协议',
-            links: [{ label: '渠道配置文档', href: 'https://sinspired.github.io/apprise_vercel/docs/QuicSet', icon: 'docs' }],
-          },
-        ],
-      },
-    ],
-  },
-
-  /* ── 5. 存储 ─────────────────────────────────────────── */
+  /* ── 4. 存储 ─────────────────────────────────────────── */
   {
     tab: 'storage',
     sections: [
@@ -268,10 +234,48 @@ const SCHEMA = [
     ],
   },
 
+  /* ── 5. 通知 ─────────────────────────────────────────── */
+  {
+    tab: 'notify',
+    sections: [
+      {
+        title: 'Apprise 通知',
+        fields: [
+          { key: 'notify-title', label: '通知标题', type: 'text', placeholder: '🔔 节点状态更新' },
+          {
+            key: 'apprise-api-server', label: 'Apprise API 地址', type: 'text', fullWidth: true,
+            placeholder: 'https://apprise.example.com/notify',
+            hint: '内置服务或自建实例的 notify 接口',
+            links: [{ label: '部署通知服务', href: 'https://github.com/sinspired/apprise_vercel', icon: 'github' }],
+          },
+          {
+            key: 'recipient-url', label: '通知渠道', type: 'url-list',
+            hint: '支持 tgram:// bark:// mailto:// ntfy:// 等 Apprise 协议',
+            links: [{ label: '渠道配置文档', href: 'https://sinspired.github.io/apprise_vercel/docs/QuicSet', icon: 'docs' }],
+          },
+        ],
+      },
+    ],
+  },
+
   /* ── 6. 高级 ─────────────────────────────────────────── */
   {
     tab: 'advanced',
     sections: [
+      {
+        title: '终端显示',
+        fields: [
+          { key: 'print-progress', label: '终端显示进度', type: 'toggle' },
+          {
+            key: 'progress-mode', label: '进度条模式', type: 'select',
+            selectWidth: '500px',
+            options: [
+              { value: 'auto', label: '自动 (auto)' },
+              { value: 'stage', label: '分阶段 (stage)' },
+            ],
+          },
+        ],
+      },
       {
         title: 'WebUI',
         fields: [
