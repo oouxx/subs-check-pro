@@ -750,6 +750,27 @@
   letter-spacing: 0.04em;
 }
 
+/* ── Cron 错误态 ── */
+
+/* 编辑模式：输入框红边 */
+.cfg-cron-input--error {
+  border-color: var(--danger, #ef4444) !important;
+  box-shadow: 0 0 0 2.5px
+    color-mix(in srgb, var(--danger, #ef4444) 18%, transparent) !important;
+  color: var(--danger, #ef4444);
+}
+
+/* 展示模式：display 层红边（失焦后渲染） */
+.cfg-cron-display--error {
+  border-color: var(--danger, #ef4444);
+  box-shadow: 0 0 0 2.5px
+    color-mix(in srgb, var(--danger, #ef4444) 15%, transparent);
+}
+.cfg-cron-display--error .cfg-cron-raw-text {
+  color: var(--danger, #ef4444);
+  opacity: 0.9;
+}
+
 /* ════════════════════════════════════════════════════════════
    密码框
 ════════════════════════════════════════════════════════════ */

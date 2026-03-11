@@ -745,9 +745,9 @@ function mkCronInput(field, value) {
       });
       labelsRow.style.visibility = '';  // 有效时显示标签行
     } else {
-      display.classList.add('cfg-cron-display--raw');
+      // 非空但格式非法：加错误高亮
+      display.classList.add('cfg-cron-display--raw', 'cfg-cron-display--error');
       display.appendChild(el('span', { class: 'cfg-cron-raw-text', textContent: inp.value }));
-      // 非法输入时标签行也隐藏
       labelsRow.style.display = 'none';
     }
   }
@@ -759,12 +759,42 @@ function mkCronInput(field, value) {
     inp.style.display = '';
     requestAnimationFrame(() => { inp.focus(); inp.select(); });
   }
+
   function exitEditMode() {
+    /* ── 退出时做完整校验（含字段数量）── */
+    const err = _validateCronFull(inp.value);
+    if (err) {
+      window.showToast?.(err, 'warn', 3500);
+      // 错误样式留到 display 层接管
+    }
+    inp.classList.remove('cfg-cron-input--error');
+    clearTimeout(_cronToastTimer);
     inp.style.display = 'none';
     display.style.display = '';
     labelsRow.style.display = '';
     renderDisplay();
   }
+
+  /* ── 实时校验（编辑态） ──────────────────────────────────────────
+ * · 空值不报错（允许用户清空）
+ * · 非空且非法 → 输入框红边，防抖 600ms 后 showToast 给出具体原因
+ * · 合法或清空 → 移除错误样式，取消 toast
+ * ─────────────────────────────────────────────────────────────── */
+  let _cronToastTimer = null;
+
+  /* ── 实时校验：只校验已输入的字段，不检查字段数量，防抖 700ms 后 toast 报错 ── */
+  inp.addEventListener('input', () => {
+    const err = _validateCronPartial(inp.value);
+    inp.classList.toggle('cfg-cron-input--error', err !== null);
+
+    clearTimeout(_cronToastTimer);
+    if (!err) return;
+
+    // 防抖：用户停止输入后再弹出，避免逐字打扰
+    _cronToastTimer = setTimeout(() => {
+      window.showToast?.(`Cron 错误：${err}`, 'warn', 3000);
+    }, 700);
+  });
 
   inp.addEventListener('blur', exitEditMode);
   display.addEventListener('click', enterEditMode);
@@ -828,43 +858,90 @@ function mkField(fieldDef, value) {
   return row;
 }
 
+/* ── Cron 字段元数据（复用于校验提示） ── */
+const _CRON_FIELD_RANGES = [
+  { name: '分钟', min: 0, max: 59 },
+  { name: '小时', min: 0, max: 23 },
+  { name: '日期', min: 1, max: 31 },
+  { name: '月份', min: 1, max: 12 },
+  { name: '星期', min: 0, max: 7 },
+];
+
 /**
- * _isValidCron — Cron 表达式校验（增强版）
- * 支持：* / 数字 / 范围(n-m) / 列表(n,m) / 步进(*\/n, n-m/n)
- * 各字段数值范围：分(0-59) 时(0-23) 日(1-31) 月(1-12) 周(0-7)
+ * _validateCronSegment — 校验 Cron 单个段（不含逗号）
+ * 支持：* | n | n-m | *\/step | n/step | n-m/step
+ * @returns {string|null} null = 合法；string = 错误描述
+ */
+function _validateCronSegment(seg, fieldIdx) {
+  const { name, min, max } = _CRON_FIELD_RANGES[fieldIdx];
+  const stepMatch = seg.match(/^(.+?)\/(\d+)$/);
+  const base = stepMatch ? stepMatch[1] : seg;
+  const step = stepMatch ? Number(stepMatch[2]) : null;
+
+  if (step !== null && step < 1)
+    return `${name}：步进值必须 ≥ 1`;
+
+  const inRange = n => { const v = Number(n); return Number.isInteger(v) && v >= min && v <= max; };
+
+  if (base === '*') return null;                          // * 或 */n
+
+  const rangeMatch = base.match(/^(\d+)-(\d+)$/);
+  if (rangeMatch) {
+    const [, lo, hi] = rangeMatch;
+    if (!inRange(lo) || !inRange(hi))
+      return `${name}：范围 ${lo}-${hi} 超出 ${min}–${max}`;
+    if (Number(lo) > Number(hi))
+      return `${name}：起始值 ${lo} 大于结束值 ${hi}`;
+    return null;
+  }
+
+  if (/^\d+$/.test(base)) {
+    if (!inRange(base)) return `${name}：${base} 超出范围 ${min}–${max}`;
+    return null;
+  }
+
+  return `${name}：含非法字符 "${base}"`;
+}
+
+/**
+ * _isValidCron — 完整校验（5字段 + 每字段合法）
  */
 function _isValidCron(expr) {
   if (!expr?.trim()) return false;
   const parts = expr.trim().split(/\s+/);
   if (parts.length !== 5) return false;
-
-  // 各字段的合法数值范围 [min, max]
-  const RANGES = [[0, 59], [0, 23], [1, 31], [1, 12], [0, 7]];
-
-  // 校验单个原子值（纯数字）是否在范围内
-  const inRange = (n, i) => { const v = Number(n); return Number.isInteger(v) && v >= RANGES[i][0] && v <= RANGES[i][1]; };
-
-  // 校验单个段（不含逗号）：* | n | n-m | */step | n/step | n-m/step
-  const validSegment = (seg, i) => {
-    const stepMatch = seg.match(/^(.+?)\/(\d+)$/);
-    const base = stepMatch ? stepMatch[1] : seg;
-    const step = stepMatch ? Number(stepMatch[2]) : null;
-    if (step !== null && (step < 1)) return false;                   // 步进值必须 ≥ 1
-
-    if (base === '*') return true;                                    // * 或 */n
-    const rangeMatch = base.match(/^(\d+)-(\d+)$/);
-    if (rangeMatch) {                                                  // n-m 或 n-m/step
-      const [, lo, hi] = rangeMatch;
-      return inRange(lo, i) && inRange(hi, i) && Number(lo) <= Number(hi);
-    }
-    if (/^\d+$/.test(base)) return inRange(base, i);                 // 纯数字
-    return false;
-  };
-
-  // 每个字段可以是逗号分隔的列表
   return parts.every((p, i) =>
-    p.split(',').every(seg => seg.length > 0 && validSegment(seg, i))
+    p.split(',').every(seg => seg.length > 0 && _validateCronSegment(seg, i) === null)
   );
+}
+
+/**
+ * _validateCronPartial — 只校验已输入的字段（用于实时 input 事件）
+ * 字段数量不足不报错，只校验已有字段的合法性
+ * @returns {string|null}
+ */
+function _validateCronPartial(val) {
+  if (!val?.trim()) return null;
+  const parts = val.trim().split(/\s+/);
+  for (let i = 0; i < Math.min(parts.length, 5); i++) {
+    for (const seg of parts[i].split(',')) {
+      const err = _validateCronSegment(seg, i);
+      if (err) return err;
+    }
+  }
+  return null;
+}
+
+/**
+ * _validateCronFull — 退出时完整校验，包含字段数量检查
+ * @returns {string|null}
+ */
+function _validateCronFull(val) {
+  if (!val?.trim()) return null;
+  const parts = val.trim().split(/\s+/);
+  if (parts.length !== 5)
+    return `需要 5 个字段（分 时 日 月 周），当前 ${parts.length} 个`;
+  return _validateCronPartial(val);
 }
 
 
