@@ -18,7 +18,7 @@
   font-weight: 700;
   color: color-mix(in srgb, var(--fg) 80%, transparent);
   white-space: nowrap;
-  line-height: 1.0;
+  line-height: 1;
 }
 .title-with-icon .title-icon {
   color: var(--muted);
@@ -263,6 +263,11 @@
   /* 双栏时右侧控件列缩窄，防止标签被挤压 */
   .cfg-panels-wrap.split-mode .cfg-field {
     grid-template-columns: 1fr 0.8fr;
+  }
+
+  /* full-width 字段不受双栏列宽影响，始终单列铺满 */
+  .cfg-panels-wrap.split-mode .cfg-field.full-width {
+    grid-template-columns: 1fr; /* 特异性 (0,4,0)，覆盖上条 */
   }
 }
 
