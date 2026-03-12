@@ -152,7 +152,7 @@ func newSingboxFile(name, jsURL, jsonURL string) file {
 	}
 
 	// icon := "https://singbox.app/wp-content/uploads/2025/06/cropped-logo-278x300.webp"
-	icon := WarpURL("https://raw.githubusercontent.com/SagerNet/sing-box/main/docs/assets/icon.svg", IsGithubProxy)
+	icon := WarpURL("https://raw.githubusercontent.com/lige47/QuanX-icon-rule/main/icon/02ProxySoftLogo/singbox.png", IsGithubProxy)
 
 	icon = WarpURL(icon, IsGithubProxy)
 	return file{
