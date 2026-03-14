@@ -2074,6 +2074,7 @@ import { initQuickPreview } from './cfg-quickpreview.js';
       return
     }
 
+    // FIXME: 在点击发生后需要立即打开页面，否则会触发ios设备窗口拦截策略，需要修复
     const r = await sfetch(API.status)
     if (!r.ok) {
       if (els.statusEl) {

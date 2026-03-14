@@ -35,6 +35,8 @@ var (
 	ProxyCount atomic.Uint32 // 总数（动态=总节点；分阶段=当前阶段规模）
 
 	TotalBytes     atomic.Uint64
+	UP             atomic.Uint64
+	DOWN           atomic.Uint64
 	ForceClose     atomic.Bool
 	Successlimited atomic.Bool
 	ProcessResults atomic.Bool
@@ -42,8 +44,9 @@ var (
 	Bucket *ratelimit.Bucket
 
 	CheckStartTime time.Time
+	CheckEndTime   time.Time
 	CheckDuration  time.Duration
-	CheckTriffic   string
+	CheckTraffic   string
 )
 
 // 存储测速和流媒体检测开关状态
@@ -424,10 +427,12 @@ func (pc *ProxyChecker) run(proxies []map[string]any) ([]Result, error) {
 	ProcessResults.Store(true)
 
 	slog.Info(fmt.Sprintf("可用节点数量: %d", len(pc.results)))
-	CheckTriffic = utils.FormatTraffic(uint64(TotalBytes.Load()))
-	slog.Info(fmt.Sprintf("检测消耗流量: %s", CheckTriffic))
+	CheckTraffic = utils.FormatTraffic(uint64(TotalBytes.Load()))
+	slog.Info(fmt.Sprintf("检测消耗流量: %s", CheckTraffic))
+	slog.Debug("流量", "UP", UP.Load(), "DOWN", DOWN.Load())
 
 	// 计算检测用时
+	CheckEndTime = time.Now()
 	CheckDuration = time.Since(CheckStartTime)
 
 	// 1. 深度分析 (利用上一步的成功率进行排序，生成 analysis yaml)
@@ -862,6 +867,7 @@ func (pc *ProxyChecker) updateProxyName(res *Result, httpClient *ProxyClient, sp
 	var tags []string
 	// 速度标签
 	if config.GlobalConfig.SpeedTestURL != "" && speed > 0 {
+		name = regexp.MustCompile(`\s*\|(?:\s*[\d.]+[KM]B/s)`).ReplaceAllString(name, "")
 		var speedStr string
 		if speed < 100 {
 			speedStr = fmt.Sprintf("%dKB/s", speed)
@@ -1073,9 +1079,11 @@ func (pc *ProxyClient) Close() {
 		bytesWritten := pc.Transport.BytesWritten.Load()
 
 		if bytesRead > 0 {
+			DOWN.Add(bytesRead)
 			TotalBytes.Add(bytesRead)
 		}
 		if bytesWritten > 0 {
+			UP.Add(bytesWritten)
 			TotalBytes.Add(bytesWritten)
 		}
 

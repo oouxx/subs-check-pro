@@ -33,6 +33,12 @@ const (
 	TemplatePattern = "templates/*.html"
 	StaticPrefix    = "/static"
 	AdminPath       = "/admin"
+	SubPath         = "/sub"
+	SharePath       = "/share"
+	PublicPath      = "/more"
+	FilesPath       = "/files"
+	AnalysisPath    = "/analysis"
+	SubInfoPath     = utils.SubInfoPath
 	APIAuthHeader   = "X-API-Key"
 	HeaderFromCheck = "X-From-Subs-Check-pro"
 	QueryFromCheck  = "from_subs_check_pro"
@@ -75,6 +81,8 @@ func (app *App) initHTTPServer() error {
 
 	app.ensureAPIKey()
 	app.registerStaticRoutes(router, saver.OutputPath)
+	// 注册订阅流量信息路由
+	app.registerSubscriptionInfoRoute(router)
 
 	if err := app.registerShareRoutes(router, saver.OutputPath); err != nil {
 		slog.Error("注册分享路由失败", "error", err)
@@ -159,7 +167,7 @@ func (app *App) registerStaticRoutes(router *gin.Engine, outputPath string) {
 	// 公共静态文件映射（无需鉴权），从包级变量读取
 	for _, f := range publicStaticFileList {
 		router.StaticFile(f.Route, filepath.Join(rulesDir, f.File))
-		router.StaticFile("/sub"+f.Route, filepath.Join(rulesDir, f.File))
+		router.StaticFile(SubPath+f.Route, filepath.Join(rulesDir, f.File))
 	}
 
 	// 受保护静态文件映射（需鉴权）
@@ -175,7 +183,7 @@ func (app *App) registerStaticRoutes(router *gin.Engine, outputPath string) {
 		// 映射到 outputPath/sub 下的文件
 		authGroup.StaticFile(routePath, filepath.Join(subDir, fileName))
 		// 同时提供 /sub 路径访问
-		authGroup.StaticFile("/sub"+routePath, filepath.Join(subDir, fileName))
+		authGroup.StaticFile(SubPath+routePath, filepath.Join(subDir, fileName))
 	}
 }
 
@@ -186,12 +194,12 @@ func (app *App) registerShareRoutes(router *gin.Engine, outputPath string) error
 
 	// 1. 加密分享路由 (/sub/...)
 	// 匹配 /sub/分享码/文件名
-	router.GET("/sub/:code/*filepath", app.handleEncryptedShare(encryptedShareDir))
-	// 匹配 /sub 或 /sub/ (处理未输入分享码的情况)
-	router.GET("/sub", app.handleEncryptedShare(encryptedShareDir))
-	router.GET("/sub/", app.handleEncryptedShare(encryptedShareDir))
-	router.GET("/share", app.handleEncryptedShare(encryptedShareDir))
-	router.GET("/share/", app.handleEncryptedShare(encryptedShareDir))
+	router.GET(SubPath+"/:code/*filepath", app.handleEncryptedShare(encryptedShareDir))
+	// 匹配 /sub 和 /sub/（处理未输入分享码的情况）
+	router.GET(SubPath, app.handleEncryptedShare(encryptedShareDir))
+	router.GET(SubPath+"/", app.handleEncryptedShare(encryptedShareDir))
+	router.GET(SharePath, app.handleEncryptedShare(encryptedShareDir))
+	router.GET(SharePath+"/", app.handleEncryptedShare(encryptedShareDir))
 
 	// 2. 公开分享路由 (/more/...)
 	moreDirPath := filepath.Join(publicShareDir, ShareDirName)
@@ -200,17 +208,17 @@ func (app *App) registerShareRoutes(router *gin.Engine, outputPath string) error
 			return err
 		}
 	}
-	router.GET("/more/*filepath", app.handleFileShare(moreDirPath, false))
+	router.GET(PublicPath+"/*filepath", app.handleFileShare(moreDirPath, false))
 
 	// 分享索引页：展示所有分享入口
-	router.GET("/files", app.handleFilesIndex)
+	router.GET(FilesPath, app.handleFilesIndex)
 
 	return nil
 }
 
 // registerWebUIRoutes 注册WebUI路由
 func (app *App) registerWebUIRoutes(router *gin.Engine) {
-	slog.Info("启用Web控制面板", "path", "http://ip:port/admin", "api-key", config.GlobalConfig.APIKey)
+	slog.Info("启用Web控制面板", "path", "http://ip:port"+AdminPath, "api-key", config.GlobalConfig.APIKey)
 
 	router.GET(AdminPath, func(c *gin.Context) {
 		c.HTML(http.StatusOK, "admin.html", gin.H{
@@ -218,9 +226,9 @@ func (app *App) registerWebUIRoutes(router *gin.Engine) {
 		})
 	})
 
-	router.GET("/admin/version", app.getOriginVersion)
+	router.GET(AdminPath+"/version", app.getOriginVersion)
 
-	router.GET("/analysis", app.handleAnalysis)
+	router.GET(AnalysisPath, app.handleAnalysis)
 }
 
 // registerAPIRoutes 注册api状态路由

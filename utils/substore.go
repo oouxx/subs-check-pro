@@ -18,13 +18,14 @@ import (
 type sub struct {
 	Name                   string     `json:"name"`
 	Remark                 string     `json:"remark"`
+	Icon                   string     `json:"icon,omitempty"`
+	IsIconColor            bool       `json:"isIconColor,omitempty"`
+	SubUserInfo            string     `json:"subUserinfo,omitempty"`
 	Source                 string     `json:"source"`
 	IgnoreFailedRemoteFile string     `json:"ignoreFailedRemoteFile,omitempty"`
 	Process                []Operator `json:"process"`
 	Tag                    []string   `json:"tag,omitempty"`
 	Content                string     `json:"content"`
-	Icon                   string     `json:"icon,omitempty"`
-	IsIconColor            bool       `json:"isIconColor,omitempty"`
 }
 
 // Arguments 脚本参数
@@ -52,6 +53,7 @@ type file struct {
 	Remark                 string     `json:"remark,omitempty"` // 备注信息
 	Icon                   string     `json:"icon,omitempty"`
 	IsIconColor            bool       `json:"isIconColor,omitempty"`
+	SubUserInfo            string     `json:"subUserinfo,omitempty"`
 	Source                 string     `json:"source"`     // "local" or "remote"
 	SourceType             string     `json:"sourceType"` // "subscription" or "collection"
 	SourceName             string     `json:"sourceName"` // 单条订阅 或 组合订阅 的名称
@@ -70,6 +72,7 @@ const (
 	SubName     = "sub"
 	MihomoName  = "mihomo"
 	SingboxName = "singbox"
+	SubInfoPath = "/sub-info"
 )
 
 var (
@@ -78,6 +81,11 @@ var (
 )
 
 var IsGithubProxy bool
+
+// SubUserInfoURL 订阅流量信息 URL，指向本地 {SubInfoPath} 公共接口。
+// mihomo / singbox 系客户端支持通过 URL 实时拉取流量信息，无需嵌入静态字符串。
+// 格式：http://127.0.0.1:{ListenPort}/{SubInfoPath}
+var SubUserInfoURL string
 
 const (
 	latestSingboxJSON = "https://raw.githubusercontent.com/sinspired/sub-store-template/main/1.12.x/sing-box.json"
@@ -92,12 +100,19 @@ var BaseURL string
 
 // newDefaultSub 返回默认sub
 func newDefaultSub(data []byte) sub {
+	icon := WarpURL("https://gh.39.al/https://raw.githubusercontent.com/sinspired/subs-check-pro/main/app/static/icon/favicon.svg", IsGithubProxy)
+
+	icon = WarpURL(icon, IsGithubProxy)
+
 	return sub{
-		Content: string(data),
-		Name:    SubName,
-		Remark:  "默认订阅 (无分流规则)",
-		Tag:     []string{"Subs-Check-Pro", "已检测"},
-		Source:  "local",
+		Content:     string(data),
+		Name:        SubName,
+		Remark:      "默认订阅 (无分流规则)",
+		Tag:         []string{"Subs-Check-Pro", "已检测"},
+		Icon:        icon,
+		IsIconColor: true,
+		SubUserInfo: SubUserInfoURL,
+		Source:      "local",
 		Process: []Operator{
 			{
 				Type:     "Quick Setting Operator",
@@ -119,6 +134,7 @@ func newMihomoFile() file {
 		Tag:         []string{"Subs-Check-Pro", "已检测"},
 		Icon:        "",
 		IsIconColor: true,
+		SubUserInfo: SubUserInfoURL,
 		Source:      "local",
 		SourceType:  "subscription",
 		SourceName:  "sub",
@@ -161,6 +177,7 @@ func newSingboxFile(name, jsURL, jsonURL string) file {
 		Tag:         []string{"Subs-Check-Pro", "已检测"},
 		Icon:        icon,
 		IsIconColor: true,
+		SubUserInfo: SubUserInfoURL,
 		Source:      "remote",
 		SourceType:  "subscription",
 		SourceName:  "SUB",
@@ -192,6 +209,16 @@ func UpdateSubStore(yamlData []byte) {
 	if os.Getenv("SUB_CHECK_SKIP") != "" && config.GlobalConfig.SubStorePort != "" {
 		time.Sleep(time.Second * 1)
 	}
+
+	// 构建订阅流量信息
+	listenPort := strings.TrimSpace(config.GlobalConfig.ListenPort)
+	if listenPort == "" {
+		listenPort = "8199"
+	}
+	// 去掉可能存在的前导冒号，统一拼接
+	listenPort = strings.TrimPrefix(listenPort, ":")
+	SubUserInfoURL = fmt.Sprintf("http://127.0.0.1:%s%s#noCache", listenPort, SubInfoPath)
+
 	// 处理用户输入的格式
 	config.GlobalConfig.SubStorePort = formatPort(config.GlobalConfig.SubStorePort)
 	// 设置基础URL

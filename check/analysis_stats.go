@@ -204,7 +204,7 @@ func saveDetailedAnalysis(global *AnalysisStats, subs map[string]*AnalysisStats,
 	sb.WriteString("  check_time: " + prettyTime(CheckStartTime) + "\n")
 	sb.WriteString("  check_duration: " + prettyDuration(CheckDuration) + "\n")
 	sb.WriteString("  check_count: " + prettyTotal(int(Progress.Load())) + "\n")
-	sb.WriteString("  check_traffic: " + CheckTriffic + "\n")
+	sb.WriteString("  check_traffic: " + CheckTraffic + "\n")
 	var speedText string
 	if speedON {
 		speedText = fmt.Sprintf("%d", config.GlobalConfig.MinSpeed)
@@ -291,7 +291,7 @@ func generateSummary(s *AnalysisStats) string {
 			"流媒体解锁: [%s]; AI 解锁[%s]; "+
 			"代理协议: %s。",
 		prettyDuration(CheckDuration),
-		CheckTriffic,
+		CheckTraffic,
 		prettyTotal(s.Total),
 		speedText, len(s.Countries), topCountry,
 		lineFeature, cfRatio, vpsRatio,
