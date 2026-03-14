@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -202,9 +203,14 @@ func saveDetailedAnalysis(global *AnalysisStats, subs map[string]*AnalysisStats,
 
 	sb.WriteString("check_info:\n")
 	sb.WriteString("  check_time: " + prettyTime(CheckStartTime) + "\n")
+	sb.WriteString("  check_time_raw: " + CheckStartTime.Format(time.RFC3339) + "\n")
 	sb.WriteString("  check_duration: " + prettyDuration(CheckDuration) + "\n")
+	sb.WriteString("  check_duration_raw: " + strconv.FormatInt(int64(CheckDuration.Seconds()), 10) + "\n")
 	sb.WriteString("  check_count: " + prettyTotal(int(Progress.Load())) + "\n")
+	sb.WriteString("  check_count_raw: " + strconv.Itoa(int(Progress.Load())) + "\n")
 	sb.WriteString("  check_traffic: " + CheckTraffic + "\n")
+	sb.WriteString("  check_traffic_raw: " + strconv.FormatUint(TotalBytes.Load(), 10) + "\n")
+	
 	var speedText string
 	if speedON {
 		speedText = fmt.Sprintf("%d", config.GlobalConfig.MinSpeed)

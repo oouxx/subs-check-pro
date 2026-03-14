@@ -3011,6 +3011,14 @@
             const n = parseInt(s, 10); return isNaN(n) ? 0 : n;
         }
 
+        // 格式化函数
+        function fmtRate(r) {
+            if (r === 0) return '0%';
+            if (r < 0.1) return '<0.1%';
+            if (r < 1) return r.toFixed(1) + '%';
+            return Math.round(r) + '%';
+        }
+
         let _reportData = null;
 
         function renderReport(r, cfg) {
@@ -3080,6 +3088,7 @@
             const minSpeedVal = ci.check_min_speed;
             const minSpeedStr = (minSpeedVal && String(minSpeedVal) !== '0') ? minSpeedVal + ' KB/s' : '未开启';
             const total = parseCount(ga.alive_count);
+            const checked = parseCount(ci.check_count_raw);
             const qm = ga.quality_metrics || {}, cfd = qm.cf_details || {};
             const cfCon = cfd['consistent_¹⁺'] || {}, cfIncon = cfd['inconsistent_⁰'] || {};
             let vps = {};
@@ -3087,11 +3096,10 @@
             const cfConTotal = Object.values(cfCon).reduce((a, b) => a + b, 0);
             const vpsTotal = Object.values(vps).reduce((a, b) => a + b, 0);
 
-            const passRate = parseCount(ci.check_count) > 0
-                ? Math.min(100, Math.round(total / parseCount(ci.check_count) * 100)) : 0;
+            const passRate = checked > 0 ? Math.min(100, total / checked * 100) : 0;
             const chips = [
-                { label: '可用节点', value: total, sub: `共检测 ${ci.check_count || '-'}`, icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>`, color: 'var(--accent)' },
-                { label: '通过率', value: passRate + '%', sub: `速度下限 ${minSpeedStr}`, icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>`, color: passRate >= 5 ? 'var(--success)' : passRate > 0 ? 'var(--warning)' : 'var(--danger)' },
+                { label: '可用节点', value: total, sub: `共检测 ${ci.check_count_raw || '-'}`, icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>`, color: 'var(--accent)' },
+                { label: '通过率', value: fmtRate(passRate), sub: `速度下限 ${minSpeedStr}`, icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>`, color: passRate >= 5 ? 'var(--success)' : passRate > 0 ? 'var(--warning)' : 'var(--danger)' },
                 { label: '覆盖地区', value: geoCount, sub: '国家/地区', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`, color: 'var(--idle)' },
                 { label: '协议种类', value: protoCount, sub: '协议分布', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`, color: 'var(--idle)' },
                 { label: 'CF 中转', value: cfConTotal, sub: total ? Math.round(cfConTotal / total * 100) + '%' : '0%', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>`, color: 'var(--success)' },
@@ -3153,7 +3161,7 @@
             const total = ga.alive_count || 0, geo = Object.keys(ga.geography_distribution || {}).length;
             const qm = ga.quality_metrics || {}, cfRatio = qm.cf_consistent_ratio || '';
             const speed = ci.check_min_speed, speedStr = (speed && String(speed) !== '0') ? `，速度下限 <span class="hl">${speed} KB/s</span>` : '';
-            return `本次检测耗时 <span class="hl">${ci.check_duration || '-'}</span>，消耗流量 <span class="hl">${ci.check_traffic || '-'}</span>，共检测 <span class="hl">${ci.check_count || '-'}</span> 个节点${speedStr}，获得 <span class="hl-ok">${total}</span> 个可用节点，覆盖 <span class="hl">${geo}</span> 个国家/地区` + (cfRatio ? `，CF 中转占比 <span class="hl">${cfRatio}</span>` : '') + '。';
+            return `本次检测耗时 <span class="hl">${ci.check_duration || '-'}</span>，消耗流量 <span class="hl">${ci.check_traffic || '-'}</span>，共检测 <span class="hl">${ci.check_count_raw || '-'}</span> 个节点${speedStr}，获得 <span class="hl-ok">${total}</span> 个可用节点，覆盖 <span class="hl">${geo}</span> 个国家/地区` + (cfRatio ? `，CF 中转占比 <span class="hl">${cfRatio}</span>` : '') + '。';
         }
 
         function parseUnlockFromSummary(text) {
@@ -3513,11 +3521,12 @@
 
         function renderConfig(ci, ga, sr, sb, cfg) {
             const total = parseCount(ga.alive_count);
-            const checked = parseCount(ci.check_count);
+            const checked = parseCount(ci.check_count_raw);
             const speed = parseInt(String(ci.check_min_speed || '0').replace(/[^0-9]/g, '')) || 0;
             const badCnt = sb.length, goodCnt = sr.length;
             const qm = ga.quality_metrics || {};
-            const passRate = checked > 0 ? Math.min(100, Math.round(total / checked * 100)) : 0;
+            const passRate = checked > 0
+                ? Math.min(100, total / checked * 100) : 0;
             const geoCount = Object.keys(ga.geography_distribution || {}).length;
             const protoCount = Object.keys(ga.protocol_distribution || {}).length;
             let vps = {}; for (const [k, v] of Object.entries(qm)) { if (k.startsWith('vps_details') && typeof v === 'object') { vps = v; break; } }
@@ -3556,12 +3565,12 @@
 
             // KV: 本次检测运行参数
             const kvs = [
-                { k: '检测节点数', v: ci.check_count || '-' },
+                { k: '检测节点数', v: ci.check_count_raw || '-' },
                 { k: '检测耗时', v: ci.check_duration || '-' },
                 { k: '流量消耗', v: ci.check_traffic || '-' },
                 { k: '速度下限', v: speed > 0 ? speed + ' KB/s' : '未设置', cls: speed > 0 ? 'ok' : 'warn' },
                 { k: '可用节点', v: total, cls: total > 0 ? 'ok' : 'bad' },
-                { k: '通过率', v: checked > 0 ? passRate + '%' : '—', cls: passRate >= 1 ? 'ok' : passRate > 0 ? 'warn' : 'bad' },
+                { k: '通过率', v: checked > 0 ? fmtRate(passRate) : '—', cls: passRate >= 1 ? 'ok' : passRate > 0 ? 'warn' : 'bad' },
                 { k: '有效订阅', v: goodCnt + ' 个' + (successRate > 0 ? `（≥${successRate}%）` : '') },
                 { k: '失效订阅', v: badCnt + ' 个', cls: badCnt > 0 ? (badCnt > goodCnt ? 'bad' : 'warn') : 'ok' },
                 { k: '检测时间', v: ci.check_time || '-' },
@@ -3601,8 +3610,8 @@
             // 1. 通过率
             if (checked > 0) {
                 if (passRate === 0) suggests.push({ l: 'warn', t: '通过率为 0%，未获得任何可用节点。请检查订阅源可用性或网络连接。' });
-                else if (passRate < 1) suggests.push({ l: 'warn', t: `通过率仅 ${passRate}%，低于正常水平。建议检查网络质量或订阅源状态。` });
-                else if (passRate >= 5) suggests.push({ l: 'good', t: `通过率 ${passRate}%，节点筛选效果优秀。` });
+                else if (passRate < 1) suggests.push({ l: 'warn', t: `通过率仅 ${fmtRate(passRate)}，低于正常水平。建议检查网络质量或订阅源状态。` });
+                else if (passRate >= 5) suggests.push({ l: 'good', t: `通过率 ${fmtRate(passRate)}，节点筛选效果优秀。` });
             }
             // 2. 订阅有效率（success-rate 影响有效/无效分界线）
             const totalSubs = goodCnt + badCnt;
