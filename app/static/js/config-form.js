@@ -369,11 +369,11 @@ const VALUE_TRANSFORM = {
 const SPECIAL_INPUT_VALUES = {
   'speed-test-url': [
     { value: 'random', label: '随机测速', hint: '从内置地址列表随机选择测速目标' },
-    { value: '', label: '关闭测速', hint: '不进行下载测速，仅对代理节点测活' },
+    { value: '', label: '关闭测速', hint: '当前留空，不进行下载测速，仅测活' },
   ],
   'system-proxy': [
     { value: 'direct', label: '直连', hint: '强制直连，不使用任何系统代理' },
-    { value: '', label: '自动', hint: '自动检测系统代理' },
+    { value: '', label: '自动', hint: '当前留空，自动检测系统代理' },
   ],
 };
 
@@ -528,24 +528,28 @@ function mkInput(field, value) {
   const specialDefs = SPECIAL_INPUT_VALUES[field.key];
   if (!specialDefs) return inp;
 
+  const originalPlaceholder = field.placeholder ?? '';
+
   /* ── 含特殊值定义：包裹一层 flex 容器，右侧插入徽章 ── */
   const wrap = el('div', { class: 'cfg-special-wrap' });
   const badge = el('span', { class: 'cfg-special-badge' });
   badge.style.display = 'none';
   wrap.append(inp, badge);
 
-  const checkSpecial = () => {
-    const v = inp.value.trim();
-    const spec = specialDefs.find(s => s.value === v);
-    inp.classList.toggle('cfg-input--special', !!spec);
-    if (spec) {
-      badge.textContent = spec.label;
-      badge.title = spec.hint;
-      badge.style.display = '';
-    } else {
-      badge.style.display = 'none';
-    }
-  };
+const checkSpecial = () => {
+  const v = inp.value.trim();
+  const spec = specialDefs.find(s => s.value === v);
+  inp.classList.toggle('cfg-input--special', !!spec);
+  if (spec) {
+    badge.textContent = spec.label;
+    badge.title = spec.hint;
+    badge.style.display = '';
+    inp.placeholder = spec.hint;
+  } else {
+    badge.style.display = 'none';
+    inp.placeholder = originalPlaceholder;
+  }
+};
 
   inp.addEventListener('input', checkSpecial);
   requestAnimationFrame(checkSpecial);
