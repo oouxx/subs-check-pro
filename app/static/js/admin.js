@@ -1210,7 +1210,7 @@ import { initQuickPreview } from './cfg-quickpreview.js';
       const newInfo = {
         lastCheckTime: info.check_time_raw,
         duration: info.check_duration_raw,
-        total: info.check_count,
+        total: info.check_count_raw,
         available: global.alive_count
       }
 
@@ -1365,12 +1365,20 @@ import { initQuickPreview } from './cfg-quickpreview.js';
               : raw + ' 秒'))
           : (info.duration || '0')
 
+        // 大屏：百万级1位小数，十万级1位小数，万级2位小数
         const prettyTotal = (typeof info.total === 'number')
           ? (info.total >= 1000000
-            ? (info.total / 10000).toFixed(0) + '万'
-            : (info.total >= 10000
-              ? (info.total / 10000).toFixed(1) + '万'
-              : info.total))
+            ? (info.total / 10000).toFixed(1) + '万'   // ≥100万：416.1万
+            : (info.total >= 100000
+              ? (info.total / 10000).toFixed(2) + '万'  // ≥10万：41.6万
+              : info.total))                             // <10万：99999
+          : (info.total || '0')
+
+        // 小屏：统一1位小数
+        const prettyTotalShort = (typeof info.total === 'number')
+          ? (info.total >= 10000
+            ? (info.total / 10000).toFixed(1) + '万'
+            : info.total)
           : (info.total || '0')
 
         const mapping = {
@@ -1380,7 +1388,7 @@ import { initQuickPreview } from './cfg-quickpreview.js';
           historyLastAvailable: info.available,
           historyLastTimeShort: prettyTimeShort,
           historyLastDurationShort: prettyDurationShort,
-          historyLastTotalShort: prettyTotal,
+          historyLastTotalShort: prettyTotalShort,
           historyLastAvailableShort: info.available,
         }
         for (const [id, val] of Object.entries(mapping)) {
