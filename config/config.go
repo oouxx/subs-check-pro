@@ -11,6 +11,25 @@ type SingBoxConfig struct {
 	JS      []string `yaml:"js"`
 }
 
+// SubProcessConfig sub 订阅的操作配置。
+type SubProcessConfig struct {
+	// ResolveDomain 开启 DNS 解析（固定 Ali / IPv6 / 缓存启用）
+	// NodeSplit=true 时自动隐式开启，无需重复设置
+	ResolveDomain bool `yaml:"resolve-domain"`
+
+	// NodeSplit 开启节点裂变（将多 IP 展开为独立节点）
+	// 为 true 时自动前置开启 ResolveDomain
+	NodeSplit bool `yaml:"node-split"`
+
+	// RegexSort 正则排序表达式列表（固定 asc），nil/空 = 不启用
+	RegexSort []string `yaml:"regex-sort"`
+
+	// SubInfo 注入订阅流量信息节点
+	// - 已存在：仅保留，不覆盖用户对 content / arguments 的修改
+	// - 不存在且为 true：注入默认脚本
+	SubInfo bool `yaml:"sub-info"`
+}
+
 type Config struct {
 	PrintProgress        bool     `yaml:"print-progress"`
 	ProgressMode         string   `yaml:"progress-mode"`
@@ -87,13 +106,15 @@ type Config struct {
 	Prerelease           bool     `yaml:"prerelease"`
 	UpdateTimeout        int      `yaml:"update-timeout"`
 
-	// 新增 singbox的ios版本停留在1.11，这里进行兼容
+	// SingboxLatest / SingboxOld iOS 仍停留在 1.11，兼容两个版本
 	SingboxLatest SingBoxConfig `yaml:"singbox-latest"`
 	SingboxOld    SingBoxConfig `yaml:"singbox-old"`
+
+	// SubProcess sub 订阅操作配置
+	SubProcess SubProcessConfig `yaml:"sub-process"`
 }
 
 var OriginDefaultConfig = &Config{
-	// 新增配置，给未更改配置文件的用户一个默认值
 	ListenPort:         ":8199",
 	NotifyTitle:        "🔔 节点状态更新",
 	MihomoOverwriteURL: "http://127.0.0.1:8199/Sinspired_Rules_CDN.yaml",
@@ -102,13 +123,16 @@ var OriginDefaultConfig = &Config{
 		"openai",
 		"gemini",
 		"youtube",
-		// "netflix",
-		// "disney",
 	},
 	DownloadMB:       20,
 	EnableSelfUpdate: true,
 	CronCheckUpdate:  "0 0,9,21 * * *",
-	// ISPCheck:    true,
+
+	SubProcess: SubProcessConfig{
+		ResolveDomain: false,
+		NodeSplit:     false,
+		SubInfo:       false,
+	},
 }
 
 // GlobalConfig 指向当前生效配置

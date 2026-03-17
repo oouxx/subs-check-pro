@@ -16,19 +16,21 @@ import (
 	"github.com/sinspired/subs-check-pro/config"
 )
 
-// Args 脚本操作参数。
+// Args 脚本操作参数
 type Args = map[string]any
 
-// ScriptOperator 脚本操作参数
+// ScriptOperator 脚本操作参数，对应 sub-store process 列表中的每一项
 type ScriptOperator struct {
 	Type       string `json:"type"`
-	Args       Args   `json:"args"`
+	Args       Args   `json:"args,omitempty"`
 	CustomName string `json:"customName"`
 	ID         string `json:"id,omitempty"`
 	Disabled   bool   `json:"disabled"`
 }
 
-// sub 单条订阅结构体
+// sub-store 资源结构体
+
+// sub 单条订阅
 type sub struct {
 	Name                  string   `json:"name"`
 	DisplayName           string   `json:"displayName"`
@@ -48,14 +50,7 @@ type sub struct {
 	SubUserInfo           string   `json:"subUserinfo,omitempty"`
 }
 
-// subContentPatch 仅更新 sub 的内容字段，不触碰 process
-// 避免覆盖用户配置的操作
-type subContentPatch struct {
-	Content     string `json:"content"`
-	SubUserInfo string `json:"subUserinfo,omitempty"`
-}
-
-// file 结构体，兼容 mihomo 和 singbox
+// file 订阅文件，兼容 mihomo / singbox
 type file struct {
 	Name                   string   `json:"name"`
 	DisplayName            string   `json:"displayName"`
@@ -75,31 +70,46 @@ type file struct {
 	Tag                    []string `json:"tag,omitempty"`
 }
 
-type resourceResult struct {
-	Status string `json:"status"`
-}
-
-// rawFile 用于从 API 读取现有 file 配置（process 保持原始 JSON）
-type rawFile struct {
-	Process []json.RawMessage `json:"process"`
-}
-
+// 常量
 const (
 	SubName     = "sub"
 	MihomoName  = "mihomo"
 	SingboxName = "singbox"
 	SubInfoPath = "/sub-info"
 
-	// scpIDPrefix 是本程序管理的操作 ID 前缀，用于区分用户自定义操作
-	// 格式: "SCP.XXXXXXXX"，便于在合并时识别所有权
+	// scpIDPrefix 标识本程序管理的操作
+	// 差量合并时：有此前缀 → 按类型决策；无此前缀 → 用户操作，原样保留。
 	scpIDPrefix = "SCP."
 
 	latestSingboxJSON = "https://raw.githubusercontent.com/sinspired/sub-store-template/main/1.12.x/sing-box.json"
 	latestSingboxJS   = "https://raw.githubusercontent.com/sinspired/sub-store-template/main/1.12.x/sing-box.js"
 	OldSingboxJSON    = "https://raw.githubusercontent.com/sinspired/sub-store-template/main/1.11.x/sing-box.json"
 	OldSingboxJS      = "https://raw.githubusercontent.com/sinspired/sub-store-template/main/1.11.x/sing-box.js"
+
+	// nodeSplitScript 将 DNS 解析得到的多 IP 展开为独立节点
+	nodeSplitScript = `function operator(proxies = []) {
+  const list = []
+  proxies.map((p = {}) => {
+    let ips = p._resolved_ips
+    if (Array.isArray(ips) && ips.length > 0) {
+      ips.map((server, index) => {
+        list.push({ ...p, name: ` + "`${p.name}${index + 1}`" + `, server })
+      })
+    } else {
+      list.push(p)
+    }
+  })
+  return list
+}`
+
+	// subInfoURLKeyword 用于在 SCP 操作中识别订阅流量信息脚本
+	subInfoURLKeyword = "sub-store-scripts"
+
+	// defaultSubInfoURL 首次注入时使用的默认脚本地址
+	defaultSubInfoURL = "https://raw.githubusercontent.com/sinspired/sub-store-scripts/refs/heads/main/surge/modules/sub-store-scripts/sub-info/node.js#showLastUpdate=true"
 )
 
+// 全局运行时变量
 var (
 	LatestSingboxVersion = "1.12"
 	OldSingboxVersion    = "1.11"
@@ -109,15 +119,18 @@ var (
 	operatorCounter      atomic.Int64 //脚本操作元素ID计数
 )
 
-// newOperatorID 生成带 SCP 前缀的固定格式 ID。
-// 前缀使程序管理的操作可与用户自定义操作区分，便于差量合并。
+// ID 生成
+
+// newOperatorID 生成带 SCP 前缀的唯一操作 ID
 func newOperatorID() string {
 	sec := time.Now().Unix() % 100_000_000
 	seq := operatorCounter.Add(1) % 100_000_000
 	return fmt.Sprintf("%s%d.%08d", scpIDPrefix, sec, seq)
 }
 
-// isScpOperator 判断一个原始操作 JSON 是否由本程序创建
+// 操作识别工具
+
+// isScpOperator 判断操作是否由本程序管理（ID 带 SCP 前缀）
 func isScpOperator(raw json.RawMessage) bool {
 	var op struct {
 		ID string `json:"id"`
@@ -128,26 +141,223 @@ func isScpOperator(raw json.RawMessage) bool {
 	return strings.HasPrefix(op.ID, scpIDPrefix)
 }
 
-// mergeProcess 将用户操作与程序操作合并：
-// 保留所有非 SCP 操作，用新的 SCP 操作替换旧的 SCP 操作，追加在末尾。
-func mergeProcess(existing []json.RawMessage, scpOps []any) ([]any, error) {
-	// 保留用户自定义操作
-	result := make([]any, 0, len(existing))
+// isQuickSettingOperator 判断是否为 Quick Setting Operator
+func isQuickSettingOperator(raw json.RawMessage) bool {
+	var op struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(raw, &op); err != nil {
+		return false
+	}
+	return op.Type == "Quick Setting Operator"
+}
+
+// isSubInfoScpOperator 判断一个 SCP 操作是否为订阅流量信息脚本。
+// 前提：已确认是 SCP 操作，此处再通过 type + content 二次确认。
+func isSubInfoScpOperator(raw json.RawMessage) bool {
+	var op struct {
+		Type string `json:"type"`
+		Args struct {
+			Content string `json:"content"`
+		} `json:"args"`
+	}
+	if err := json.Unmarshal(raw, &op); err != nil {
+		return false
+	}
+	return op.Type == "Script Operator" &&
+		strings.Contains(op.Args.Content, subInfoURLKeyword)
+}
+
+// patchDisabled 仅修改操作的 disabled 字段，其余字段原样保留
+func patchDisabled(raw json.RawMessage, disabled bool) (any, error) {
+	var m map[string]any
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return nil, err
+	}
+	m["disabled"] = disabled
+	return m, nil
+}
+
+// SCP 操作构建（不含 QuickSetting 和 SubInfo）
+
+// buildScpOps 根据配置生成由本程序管理的 SCP 操作列表。
+//
+// 执行顺序：
+//  1. Resolve Domain —— DNS 解析（NodeSplit=true 时自动开启）
+//  2. Node Split     —— 裂变，依赖 ① 结果
+//  3. Regex Sort     —— 正则排序
+func buildScpOps(cfg config.SubProcessConfig) []any {
+	needResolve := cfg.ResolveDomain || cfg.NodeSplit
+
+	var ops []any
+
+	// ① Resolve Domain
+	if needResolve {
+		ops = append(ops, ScriptOperator{
+			Type:       "Resolve Domain Operator",
+			CustomName: "节点解析",
+			ID:         newOperatorID(),
+			Args: Args{
+				"provider": "Ali",
+				"type":     "IPv6",
+				"filter":   "disabled",
+				"cache":    "enabled",
+				"url":      "",
+				"edns":     "223.6.6.6",
+			},
+		})
+	}
+
+	// ② Node Split
+	if cfg.NodeSplit {
+		ops = append(ops, ScriptOperator{
+			Type:       "Script Operator",
+			CustomName: "节点裂变",
+			ID:         newOperatorID(),
+			Args: Args{
+				"content": nodeSplitScript,
+				"mode":    "script",
+			},
+		})
+	}
+
+	// ③ Regex Sort
+	if len(cfg.RegexSort) > 0 {
+		ops = append(ops, ScriptOperator{
+			Type:       "Regex Sort Operator",
+			CustomName: "正则排序",
+			ID:         newOperatorID(),
+			Args: Args{
+				"order":       "asc",
+				"expressions": cfg.RegexSort,
+			},
+		})
+	}
+
+	return ops
+}
+
+// 差量合并 Process（sub 专用）
+
+// mergeSubProcess 对 sub 的 process 列表做差量合并。
+//
+// 操作分四类处理：
+//
+//  1. Quick Setting Operator（按 type 识别，无 ID）
+//     已存在 → 仅将 disabled 置 false，args 原样保留
+//     不存在 → 插入列表最前，不带 args（避免覆盖用户设置）
+//
+//  2. SubInfo SCP 操作（有 SCP ID + type=Script + content 含关键词）
+//     开关开启且已存在 → 暂存，追加到最末尾（用户对 content/arguments 的修改不覆盖）
+//     开关开启且不存在 → 在所有操作最末尾追加带 SCP ID 的默认脚本
+//     开关关闭         → 和普通 SCP 操作一起丢弃
+//
+//  3. 其他 SCP 操作（有 SCP ID）
+//     统一丢弃，末尾由 buildScpOps 重建
+//
+//  4. 用户自定义操作（无 SCP ID）
+//     原样保留，顺序不变
+//
+// 最终顺序：[QuickSetting] [用户自定义操作] [SCP操作] [SubInfo]
+func mergeSubProcess(existing []json.RawMessage, scpOps []any, cfg config.SubProcessConfig) ([]any, error) {
+	var (
+		result          []any
+		existingSubInfo any // 暂存已存在的 SubInfo，最终追加到末尾
+		hasQuickSetting bool
+		hasSubInfo      bool
+	)
+
 	for _, raw := range existing {
-		if !isScpOperator(raw) {
+		switch {
+		case isQuickSettingOperator(raw):
+			// 仅更新 disabled，保留用户的 args
+			patched, err := patchDisabled(raw, false)
+			if err != nil {
+				return nil, fmt.Errorf("修补 Quick Setting 失败: %w", err)
+			}
+			result = append(result, patched)
+			hasQuickSetting = true
+
+		case isScpOperator(raw):
+			// SCP 操作：先判断是否为 SubInfo
+			if cfg.SubInfo && isSubInfoScpOperator(raw) {
+				// SubInfo 开关开启：暂存，最终放到末尾
+				var op any
+				if err := json.Unmarshal(raw, &op); err != nil {
+					return nil, fmt.Errorf("解析 SubInfo 操作失败: %w", err)
+				}
+				existingSubInfo = op
+				hasSubInfo = true
+			}
+			// 其他 SCP 操作（含开关关闭时的 SubInfo）统一丢弃，末尾重建
+
+		default:
+			// 用户自定义操作：原样保留
 			var op any
 			if err := json.Unmarshal(raw, &op); err != nil {
-				return nil, err
+				return nil, fmt.Errorf("解析用户操作失败: %w", err)
 			}
 			result = append(result, op)
 		}
 	}
-	// 追加本程序管理的操作
+
+	// Quick Setting 不存在时插入最前（不带 args）
+	if !hasQuickSetting {
+		result = append([]any{
+			map[string]any{
+				"type":     "Quick Setting Operator",
+				"disabled": false,
+			},
+		}, result...)
+	}
+
+	// SCP 操作追加
+	result = append(result, scpOps...)
+
+	// SubInfo 追加在最末尾
+	if hasSubInfo {
+		// 已存在：原样保留（用户修改的 content/arguments 不覆盖）
+		result = append(result, existingSubInfo)
+	} else if cfg.SubInfo {
+		// 不存在且开关开启：注入默认脚本
+		result = append(result, ScriptOperator{
+			Type:       "Script Operator",
+			CustomName: "注入订阅流量信息节点",
+			ID:         newOperatorID(), // 带 SCP ID，下次由 isSubInfoScpOperator 识别保留
+			Args: Args{
+				"content": defaultSubInfoURL,
+				"mode":    "link",
+				"arguments": Args{
+					"showLastUpdate": "true",
+				},
+			},
+		})
+	}
+
+	return result, nil
+}
+
+// file 差量合并（仅替换 SCP 操作）
+
+// mergeFileProcess file 资源的差量合并：仅替换 SCP 操作，用户操作全部保留
+func mergeFileProcess(existing []json.RawMessage, scpOps []any) ([]any, error) {
+	result := make([]any, 0, len(existing)+len(scpOps))
+	for _, raw := range existing {
+		if isScpOperator(raw) {
+			continue
+		}
+		var op any
+		if err := json.Unmarshal(raw, &op); err != nil {
+			return nil, fmt.Errorf("解析用户操作失败: %w", err)
+		}
+		result = append(result, op)
+	}
 	result = append(result, scpOps...)
 	return result, nil
 }
 
-// newDefaultSub 返回默认sub
+// 资源构建
+
 func newDefaultSub(data []byte) sub {
 	icon := WarpURL("https://raw.githubusercontent.com/sinspired/subs-check-pro/main/app/static/icon/favicon.svg", IsGithubProxy)
 	return sub{
@@ -161,10 +371,12 @@ func newDefaultSub(data []byte) sub {
 		SubUserInfo:    SubUserInfoURL,
 		Source:         "local",
 		Content:        string(data),
-		Process:        []any{}, // 仅创建时使用，更新时不覆盖
+		// Process 由 updateSub 内 mergeSubProcess 动态组装
+		Process: []any{},
 	}
 }
 
+// newMihomoFile 定义 mihomo 文件
 func newMihomoFile() file {
 	overwriteURL := config.GlobalConfig.MihomoOverwriteURL
 	if overwriteURL == "" {
@@ -181,15 +393,13 @@ func newMihomoFile() file {
 		SourceName:  SubName,
 		Process: []any{
 			ScriptOperator{
-				Type:       "Script Operator",
-				CustomName: "",
-				ID:         newOperatorID(),
+				Type: "Script Operator",
+				ID:   newOperatorID(),
 				Args: Args{
 					"content":   WarpURL(overwriteURL, IsGithubProxy),
 					"mode":      "link",
 					"arguments": Args{},
 				},
-				Disabled: false,
 			},
 		},
 		Type:                   "mihomoProfile",
@@ -198,7 +408,7 @@ func newMihomoFile() file {
 	}
 }
 
-// newSingboxFile 返回singbox文件
+// newSingboxFile 返回 singbox 文件
 func newSingboxFile(name, jsURL, jsonURL string) file {
 	jsURL = WarpURL(jsURL, IsGithubProxy) + "#name=sub&type=0"
 	jsonURL = WarpURL(jsonURL, IsGithubProxy)
@@ -223,9 +433,8 @@ func newSingboxFile(name, jsURL, jsonURL string) file {
 		SourceName:  "SUB",
 		Process: []any{
 			ScriptOperator{
-				Type:       "Script Operator",
-				CustomName: "",
-				ID:         newOperatorID(),
+				Type: "Script Operator",
+				ID:   newOperatorID(),
 				Args: Args{
 					"content": jsURL,
 					"mode":    "link",
@@ -234,7 +443,6 @@ func newSingboxFile(name, jsURL, jsonURL string) file {
 						"type": "0",
 					},
 				},
-				Disabled: false,
 			},
 		},
 		Type:                   "file",
@@ -243,111 +451,32 @@ func newSingboxFile(name, jsURL, jsonURL string) file {
 	}
 }
 
-// UpdateSubStore 更新sub-store
-func UpdateSubStore(yamlData []byte) {
-	IsGithubProxy = GetGhProxy()
+// HTTP 辅助
 
-	// 调试的时候等一等node启动
-	if os.Getenv("SUB_CHECK_SKIP") != "" && config.GlobalConfig.SubStorePort != "" {
-		time.Sleep(time.Second * 1)
-	}
-
-	// 构建订阅流量信息
-	listenPort := strings.TrimSpace(config.GlobalConfig.ListenPort)
-	if listenPort == "" {
-		listenPort = "8199"
-	}
-	// 去掉可能存在的前导冒号，统一拼接
-	listenPort = strings.TrimPrefix(listenPort, ":")
-	SubUserInfoURL = fmt.Sprintf("http://127.0.0.1:%s%s#noCache", listenPort, SubInfoPath)
-
-	// 处理用户输入的格式
-	config.GlobalConfig.SubStorePort = formatPort(config.GlobalConfig.SubStorePort)
-	// 设置基础URL
-	BaseURL = fmt.Sprintf("http://127.0.0.1%s", config.GlobalConfig.SubStorePort)
-	if p := config.GlobalConfig.SubStorePath; p != "" {
-		if !strings.HasPrefix(p, "/") {
-			config.GlobalConfig.SubStorePath = "/" + p
-		}
-		BaseURL += config.GlobalConfig.SubStorePath
-	}
-
-	// 创建默认订阅实例
-	defaultSub := newDefaultSub(yamlData)
-
-	// 处理 sub 订阅
-	endpoint := "sub"
-	if err := checkResource(endpoint, defaultSub.Name); err != nil {
-		slog.Debug(fmt.Sprintf("检查 %s 配置文件失败: %v, 正在创建中...", defaultSub.Name, err))
-		if err := createResource(endpoint, defaultSub, defaultSub.Name); err != nil {
-			slog.Error(fmt.Sprintf("创建 %s 配置文件失败: %v", defaultSub.Name, err))
-			return
-		}
-	} else {
-		// 已存在：只更新 content 和 subUserinfo，保留用户 process
-		patch := subContentPatch{
-			Content:     defaultSub.Content,
-			SubUserInfo: defaultSub.SubUserInfo,
-		}
-		if err := updateResource(endpoint, patch, SubName); err != nil {
-			slog.Error(fmt.Sprintf("更新 %s 配置文件失败: %v", defaultSub.Name, err))
-			return
-		}
-		slog.Info(fmt.Sprintf("%s 订阅内容已更新（用户操作已保留）", defaultSub.Name))
-	}
-
-	// 定义 mihomo 文件
-	mihomoFile := newMihomoFile()
-	if err := mihomoFile.updateSubStoreFile(); err != nil {
-		slog.Info("mihomo 订阅更新失败")
-	}
-
-	// 处理最新版本和旧版本的singbox订阅
-	if config.GlobalConfig.SingboxLatest.Version != "" {
-		LatestSingboxVersion = config.GlobalConfig.SingboxLatest.Version
-	}
-	if config.GlobalConfig.SingboxOld.Version != "" {
-		OldSingboxVersion = config.GlobalConfig.SingboxOld.Version
-	}
-	processSingboxFile(&config.GlobalConfig.SingboxLatest, latestSingboxJS, latestSingboxJSON, LatestSingboxVersion)
-	processSingboxFile(&config.GlobalConfig.SingboxOld, OldSingboxJS, OldSingboxJSON, OldSingboxVersion)
-
-	slog.Info("substore更新完成")
-}
-
-// processSingboxFile 处理 singbox 订阅
-func processSingboxFile(sbc *config.SingBoxConfig, defaultJS, defaultJSON, singboxVersion string) {
-	js, jsonStr := defaultJS, defaultJSON
-	if len(sbc.JS) > 0 && len(sbc.JSON) > 0 {
-		js = sbc.JS[0]
-		jsonStr = sbc.JSON[0]
-	}
-	name := SingboxName + "-" + singboxVersion
-	f := newSingboxFile(name, js, jsonStr)
-	if err := f.updateSubStoreFile(); err != nil {
-		slog.Info(fmt.Sprintf("%s 订阅更新失败", f.Name))
-	}
-}
-
-// checkResource 检查资源是否存在
-func checkResource(endpoint, name string) error {
+// fetchProcess 获取指定资源的现有 process 列表（保留原始 JSON 用于差量合并）
+func fetchProcess(endpoint, name string) ([]json.RawMessage, error) {
 	resp, err := http.Get(fmt.Sprintf("%s/api/%s/%s", BaseURL, endpoint, name))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	var result resourceResult
-	if err := json.Unmarshal(body, &result); err != nil {
-		return fmt.Errorf("解析响应失败: %w", err)
+	var envelope struct {
+		Status string `json:"status"`
+		Data   struct {
+			Process []json.RawMessage `json:"process"`
+		} `json:"data"`
 	}
-	if result.Status != "success" {
-		return fmt.Errorf("获取 %s 资源失败", name)
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		return nil, fmt.Errorf("解析 %s/%s 响应失败: %w", endpoint, name, err)
 	}
-	return nil
+	if envelope.Status != "success" {
+		return nil, fmt.Errorf("获取 %s/%s 失败", endpoint, name)
+	}
+	return envelope.Data.Process, nil
 }
 
 // createResource 创建资源
@@ -366,12 +495,12 @@ func createResource(endpoint string, data any, name string) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("创建 %s 资源失败, 错误码: %d", name, resp.StatusCode)
+		return fmt.Errorf("创建 %s 失败，状态码: %d", name, resp.StatusCode)
 	}
 	return nil
 }
 
-// updateResource 更新资源
+// updateResource 更新资源（PATCH）
 func updateResource(endpoint string, data any, name string) error {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
@@ -392,40 +521,54 @@ func updateResource(endpoint string, data any, name string) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("更新 %s 资源失败, 错误码: %d", name, resp.StatusCode)
+		return fmt.Errorf("更新 %s 失败，状态码: %d", name, resp.StatusCode)
 	}
 	return nil
 }
 
-// fetchFileProcess 拉取现有 file 的 process 列表（原始 JSON）
-func fetchFileProcess(name string) ([]json.RawMessage, error) {
-	resp, err := http.Get(fmt.Sprintf("%s/api/wholeFile/%s", BaseURL, name))
+// sub 更新
+
+// updateSub 创建或差量更新 sub 订阅
+func updateSub(s sub) error {
+	endpoint := "sub"
+	cfg := config.GlobalConfig.SubProcess
+	scpOps := buildScpOps(cfg)
+
+	existing, err := fetchProcess(endpoint, s.Name)
 	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
+		// 首次创建
+		slog.Debug(fmt.Sprintf("检查 %s 失败: %v，正在创建...", s.Name, err))
+		initial, mergeErr := mergeSubProcess(nil, scpOps, cfg)
+		if mergeErr != nil {
+			return mergeErr
+		}
+		s.Process = initial
+		return createResource(endpoint, s, s.Name)
 	}
 
-	// sub-store 响应结构: {"status":"success","data":{...file fields...}}
-	var envelope struct {
-		Status string  `json:"status"`
-		Data   rawFile `json:"data"`
+	// 已存在：差量合并 process
+	merged, err := mergeSubProcess(existing, scpOps, cfg)
+	if err != nil {
+		return fmt.Errorf("合并 %s process 失败: %w", s.Name, err)
 	}
-	if err := json.Unmarshal(body, &envelope); err != nil {
-		return nil, fmt.Errorf("解析 file 响应失败: %w", err)
+
+	patch := struct {
+		Content     string `json:"content"`
+		SubUserInfo string `json:"subUserinfo,omitempty"`
+		Process     []any  `json:"process"`
+	}{
+		Content:     s.Content,
+		SubUserInfo: s.SubUserInfo,
+		Process:     merged,
 	}
-	if envelope.Status != "success" {
-		return nil, fmt.Errorf("获取 file %s 失败", name)
-	}
-	return envelope.Data.Process, nil
+	return updateResource(endpoint, patch, SubName)
 }
 
-// updateSubStoreFile 创建或更新 file 资源，更新时保留用户自定义操作
+// file 更新
+
+// updateSubStoreFile 创建或差量更新 file 资源（mihomo / singbox）
 func (f file) updateSubStoreFile() error {
-	// 校验：提取本程序配置的 SCP 操作列表
+	// 收集本程序配置的 SCP 操作
 	var scpOps []any
 	for _, item := range f.Process {
 		if op, ok := item.(ScriptOperator); ok && strings.HasPrefix(op.ID, scpIDPrefix) {
@@ -433,43 +576,112 @@ func (f file) updateSubStoreFile() error {
 		}
 	}
 
+	// 校验
 	if f.Name == MihomoName {
 		if len(scpOps) == 0 {
-			return fmt.Errorf("未设置覆写文件")
+			return fmt.Errorf("%s 未设置覆写文件", f.Name)
 		}
 	} else if len(scpOps) == 0 || f.URL == "" {
-		return fmt.Errorf("未设置覆写文件或规则文件")
+		return fmt.Errorf("%s 未设置覆写脚本或规则文件", f.Name)
 	}
 
 	endpoint := "file"
-	existing, err := fetchFileProcess(f.Name)
+	existing, err := fetchProcess("wholeFile", f.Name)
 	if err != nil {
-		// 不存在，直接创建
-		slog.Debug(fmt.Sprintf("检查 %s 配置文件失败: %v, 正在创建中...", f.Name, err))
+		// 资源不存在，直接创建
+		slog.Debug(fmt.Sprintf("检查 %s 失败: %v，正在创建...", f.Name, err))
 		if err := createResource(endpoint, f, f.Name); err != nil {
-			slog.Error(fmt.Sprintf("创建 %s 配置文件失败: %v", f.Name, err))
-			return err
+			return fmt.Errorf("创建 %s 失败: %w", f.Name, err)
 		}
-	} else {
-		// 已存在：合并 process，保留用户操作，替换 SCP 操作
-		merged, err := mergeProcess(existing, scpOps)
-		if err != nil {
-			slog.Error(fmt.Sprintf("合并 %s process 失败: %v", f.Name, err))
-			return err
-		}
-		f.Process = merged
-
-		if err := updateResource(endpoint, f, f.Name); err != nil {
-			slog.Error(fmt.Sprintf("更新 %s 配置文件失败: %v", f.Name, err))
-			return err
-		}
+		slog.Info(fmt.Sprintf("%s 订阅已创建", f.Name))
+		return nil
 	}
 
-	slog.Info(fmt.Sprintf("%s 订阅已更新", f.Name))
+	// 已存在：仅替换 SCP 操作，用户操作全部保留
+	merged, err := mergeFileProcess(existing, scpOps)
+	if err != nil {
+		return fmt.Errorf("合并 %s process 失败: %w", f.Name, err)
+	}
+	f.Process = merged
+
+	if err := updateResource(endpoint, f, f.Name); err != nil {
+		return fmt.Errorf("更新 %s 失败: %w", f.Name, err)
+	}
+	slog.Info(fmt.Sprintf("%s 订阅已更新（用户自定义操作已保留）", f.Name))
 	return nil
 }
 
-// 如果用户监听了局域网IP，后续会请求失败
+// 入口
+
+// UpdateSubStore 更新 sub-store 全部订阅
+func UpdateSubStore(yamlData []byte) {
+	IsGithubProxy = GetGhProxy()
+
+	// 调试时等待 node 启动
+	if os.Getenv("SUB_CHECK_SKIP") != "" && config.GlobalConfig.SubStorePort != "" {
+		time.Sleep(time.Second * 1)
+	}
+
+	// 构建订阅流量信息 URL
+	listenPort := strings.TrimSpace(config.GlobalConfig.ListenPort)
+	if listenPort == "" {
+		listenPort = "8199"
+	}
+	// 去掉可能存在的前导冒号，统一拼接
+	listenPort = strings.TrimPrefix(listenPort, ":")
+	SubUserInfoURL = fmt.Sprintf("http://127.0.0.1:%s%s#noCache", listenPort, SubInfoPath)
+
+	// 规范化 SubStorePort，设置 BaseURL
+	config.GlobalConfig.SubStorePort = formatPort(config.GlobalConfig.SubStorePort)
+	BaseURL = fmt.Sprintf("http://127.0.0.1%s", config.GlobalConfig.SubStorePort)
+	if p := config.GlobalConfig.SubStorePath; p != "" {
+		if !strings.HasPrefix(p, "/") {
+			config.GlobalConfig.SubStorePath = "/" + p
+		}
+		BaseURL += config.GlobalConfig.SubStorePath
+	}
+
+	// --- sub ---
+	defaultSub := newDefaultSub(yamlData)
+	if err := updateSub(defaultSub); err != nil {
+		slog.Error(fmt.Sprintf("更新 %s 失败: %v", defaultSub.Name, err))
+		return
+	}
+	slog.Info(fmt.Sprintf("%s 订阅已更新", defaultSub.Name))
+
+	// --- mihomo ---
+	if err := newMihomoFile().updateSubStoreFile(); err != nil {
+		slog.Warn(fmt.Sprintf("mihomo 订阅更新失败: %v", err))
+	}
+
+	// --- singbox ---
+	if config.GlobalConfig.SingboxLatest.Version != "" {
+		LatestSingboxVersion = config.GlobalConfig.SingboxLatest.Version
+	}
+	if config.GlobalConfig.SingboxOld.Version != "" {
+		OldSingboxVersion = config.GlobalConfig.SingboxOld.Version
+	}
+	processSingboxFile(&config.GlobalConfig.SingboxLatest, latestSingboxJS, latestSingboxJSON, LatestSingboxVersion)
+	processSingboxFile(&config.GlobalConfig.SingboxOld, OldSingboxJS, OldSingboxJSON, OldSingboxVersion)
+
+	slog.Info("substore 更新完成")
+}
+
+func processSingboxFile(sbc *config.SingBoxConfig, defaultJS, defaultJSON, version string) {
+	js, jsonStr := defaultJS, defaultJSON
+	if len(sbc.JS) > 0 && len(sbc.JSON) > 0 {
+		js = sbc.JS[0]
+		jsonStr = sbc.JSON[0]
+	}
+	f := newSingboxFile(SingboxName+"-"+version, js, jsonStr)
+	if err := f.updateSubStoreFile(); err != nil {
+		slog.Warn(fmt.Sprintf("%s 订阅更新失败: %v", f.Name, err))
+	}
+}
+
+// 工具函数
+
+// formatPort 统一端口格式为 ":PORT"，兼容用户输入 IP:PORT 的情况
 func formatPort(port string) string {
 	if strings.Contains(port, ":") {
 		parts := strings.Split(port, ":")
