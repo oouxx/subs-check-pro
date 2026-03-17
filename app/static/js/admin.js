@@ -677,11 +677,11 @@ import { initQuickPreview } from './cfg-quickpreview.js';
       if (checking) {
         const processed = d.progress || 0
         if (forceClose) {
-          if (successlimited || processResults){
+          if (successlimited || processResults) {
             updateToggleUI('stopping')
-          }else{
+          } else {
             updateToggleUI('forcing')
-          }  
+          }
         } else if (successlimited || processResults) {
           updateToggleUI('stopping')
         } else if (processed === 0) {
@@ -2342,7 +2342,28 @@ import { initQuickPreview } from './cfg-quickpreview.js';
         const doc = window.YAML.parseDocument(_rawConfigYaml || '')
         if (doc.errors?.length)
           return showToast('原始配置 YAML 解析错误：' + doc.errors[0].message, 'error', 5000)
-        for (const [k, v] of Object.entries(collectConfigForm())) doc.set(k, v)
+        function setDocValue(doc, key, value) {
+          if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+            // 嵌套对象：逐字段 set，保留同级注释
+            for (const [subKey, subVal] of Object.entries(value)) {
+              const node = doc.getIn([key]);
+              if (node && typeof node === 'object') {
+                // 子节点已存在，递归设置
+                doc.setIn([key, subKey], subVal);
+              } else {
+                // 整块不存在，直接 set 整个对象
+                doc.set(key, value);
+                break;
+              }
+            }
+          } else {
+            doc.set(key, value);
+          }
+        }
+
+        for (const [k, v] of Object.entries(collectConfigForm())) {
+          setDocValue(doc, k, v);
+        }
         formatted = doc.toString({ lineWidth: 0 })
         _rawConfigYaml = formatted
 

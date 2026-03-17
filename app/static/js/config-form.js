@@ -325,6 +325,61 @@ const SCHEMA = [
         ],
       },
       {
+        title: '节点操作 (Sub-Store)',
+        fields: [
+          {
+            key: 'sub-process.resolve-domain', label: 'DNS 解析', type: 'toggle',
+            hint: '解析节点域名为 IP；固定使用 Ali DNS / IPv6 / 缓存启用',
+          },
+          {
+            key: 'sub-process.node-split', label: '节点裂变', type: 'toggle',
+            hint: '将 DNS 解析到的多个 IP 展开为独立节点；自动开启 DNS 解析',
+          },
+          {
+            key: 'sub-process.sub-info', label: '注入流量信息节点', type: 'toggle',
+            hint: '在订阅开头注入虚拟节点，用于在客户端展示剩余流量、更新时间等信息',
+          },
+          {
+            key: 'sub-process.regex-sort', label: '正则排序', type: 'url-list',
+            hint: '按优先级填写正则表达式，匹配的节点排在前面；留空不排序\n示例：.*\\bSG.*　　.*\\bUS.*　　.*GPT⁺.*',
+          },
+        ],
+      },
+      {
+        title: 'Singbox 规则',
+        fields: [
+          {
+            key: 'singbox-latest.version', label: '最新版本号', type: 'text',
+            placeholder: '1.12',
+            hint: 'singbox 最新版，Android / Windows 客户端首选',
+          },
+          {
+            key: 'singbox-latest.json', label: '最新版规则 JSON', type: 'text', fullWidth: true,
+            placeholder: 'https://raw.githubusercontent.com/sinspired/sub-store-template/main/1.12.x/sing-box.json',
+            hint: '分流规则文件地址，留空使用内置默认值',
+            links: [{ label: '查看模板仓库', href: 'https://github.com/sinspired/sub-store-template', icon: 'github' }],
+          },
+          {
+            key: 'singbox-latest.js', label: '最新版处理脚本', type: 'text', fullWidth: true,
+            placeholder: 'https://raw.githubusercontent.com/sinspired/sub-store-template/main/1.12.x/sing-box.js',
+            hint: '节点处理脚本地址，留空使用内置默认值',
+          },
+          {
+            key: 'singbox-old.version', label: '兼容版本号', type: 'text',
+            placeholder: '1.11',
+            hint: 'iOS 等旧客户端兼容版本（如 1.11）',
+          },
+          {
+            key: 'singbox-old.json', label: '兼容版规则 JSON', type: 'text', fullWidth: true,
+            placeholder: 'https://raw.githubusercontent.com/sinspired/sub-store-template/main/1.11.x/sing-box.json',
+          },
+          {
+            key: 'singbox-old.js', label: '兼容版处理脚本', type: 'text', fullWidth: true,
+            placeholder: 'https://raw.githubusercontent.com/sinspired/sub-store-template/main/1.11.x/sing-box.js',
+          },
+        ],
+      },
+      {
         title: '其他',
         fields: [
           { key: 'maxmind-db-path', label: 'MaxMind DB 路径', type: 'text', fullWidth: true, placeholder: '/data/GeoLite2-City.mmdb', hint: '留空则使用内置数据库' },
@@ -443,6 +498,43 @@ function _editorW() { return (window.innerWidth - SIDEBAR_W - LAYOUT_GAPS) / 2; 
 function _canShowSplitBtn() { return _editorW() >= MIN_PANEL_W_SHOW * 2; }
 function _canSplit() { return _editorW() >= MIN_PANEL_W_AUTO * 2; }
 
+
+/* ════════════════════════════════════════════════════════════
+   嵌套对象 ↔ 点分隔键 互转
+   ─────────────────────────────────────────────────────────
+   · SCHEMA 中 key = 'singbox-latest.version' 即为嵌套路径
+   · renderConfigForm 时将配置对象展平为点分隔键，存入 _cfg
+   · collectConfigForm 时将 _cfg 还原为嵌套对象后返回
+   · 不影响任何现有平铺键（如 'save-method'）
+════════════════════════════════════════════════════════════ */
+function _flattenCfg(obj, prefix = '', out = {}) {
+  for (const [k, v] of Object.entries(obj ?? {})) {
+    const key = prefix ? `${prefix}.${k}` : k;
+    if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
+      _flattenCfg(v, key, out);
+    } else {
+      out[key] = v;
+    }
+  }
+  return out;
+}
+
+function _unflattenCfg(flat) {
+  const out = {};
+  for (const [key, val] of Object.entries(flat)) {
+    const parts = key.split('.');
+    let cur = out;
+    for (let i = 0; i < parts.length - 1; i++) {
+      // 若已存在但不是普通对象（如被赋为数组/基本类型），覆盖为对象
+      if (typeof cur[parts[i]] !== 'object' || cur[parts[i]] === null || Array.isArray(cur[parts[i]])) {
+        cur[parts[i]] = {};
+      }
+      cur = cur[parts[i]];
+    }
+    cur[parts[parts.length - 1]] = val;
+  }
+  return out;
+}
 
 /* ═══════════════════════════ DOM 工具 ═══════════════════════════ */
 function el(tag, attrs = {}) {
@@ -1500,7 +1592,7 @@ export function initConfigForm() {
  * renderConfigForm(configObj)
  */
 export function renderConfigForm(configObj) {
-  _cfg = configObj ?? {};
+  _cfg = _flattenCfg(configObj ?? {});
   _built.clear();
 
   const toRebuild = new Set([_leftTab, _rightTab].filter(Boolean));
@@ -1522,7 +1614,7 @@ export function collectConfigForm() {
   for (const { tab } of SCHEMA) {
     if (_built.has(tab)) Object.assign(result, collectPanel(tab));
   }
-  return result;
+  return _unflattenCfg(result);
 }
 
 function collectPanel(tabId) {
