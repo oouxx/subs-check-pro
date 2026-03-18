@@ -577,6 +577,11 @@ const VALUE_TRANSFORM = {
       return +(n / 100).toFixed(6);            // 3 → 0.03
     },
   },
+  // sub-process.regex-filter-keep：后端存 bool，select 控件存 "true"/"false" 字符串
+  'sub-process.regex-filter-keep': {
+    load: v => (v === false || v === 'false') ? 'false' : 'true',  // bool → string
+    save: v => v !== 'false',   // string → bool
+  },
 };
 
 
@@ -1906,7 +1911,11 @@ function collectPanel(tabId) {
         }
         case 'select': {
           const sel = panel.querySelector(`select.cfg-select-native[data-key="${key}"]`);
-          if (sel) out[key] = field.numericOptions ? parseFloat(sel.value) : sel.value;
+          if (sel) {
+            const raw = field.numericOptions ? parseFloat(sel.value) : sel.value;
+            const xf = VALUE_TRANSFORM[key];
+            out[key] = xf ? xf.save(raw) : raw;  // ← 新增 xf 判断
+          }
           break;
         }
         case 'chips': {
