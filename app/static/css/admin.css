@@ -20,11 +20,12 @@
   --danger: #ed1717;
 
   /* 密码输入框背景 */
-  --input-bg: rgba(236, 232, 224, 0.2);
-  --bg-hover: rgba(236, 232, 224, 0.6);
+  --input-bg: rgba(231, 223, 208, 0.2);
+  --bg-summary: rgba(255, 255, 255, 0.5);
+  --bg-hover: rgba(242, 234, 219, 0.5);
 
   /* --logs-bg: rgba(236, 232, 224, 0.2); */
-  --logs-bg: white;
+  --logs-bg: rgba(231, 223, 208, 0.1);
   --editor-bg: white;
   --content-bg: rgba(255, 255, 255, 0);
   --gutter-bg: rgba(241, 237, 226, 0.2);
@@ -77,6 +78,7 @@
   --prepare: rgb(1, 136, 194);
 
   --input-bg: rgba(0, 0, 0, 0.2);
+  --bg-summary: rgba(0, 0, 0, 0.2);
   --bg-hover: #04585540;
   --logs-bg: rgba(0, 0, 0, 0.2);
   --editor-bg: rgba(23, 23, 23, 0.2);
@@ -1007,15 +1009,6 @@ main {
   display: inline;
 }
 
-@media (min-width: 640px) {
-  .history-full {
-    display: inline;
-  }
-  .history-short {
-    display: none;
-  }
-}
-
 .icon-small {
   width: 14px;
   height: 14px;
@@ -1238,22 +1231,6 @@ main {
   padding-bottom: 4px;
 }
 
-/* 中小屏放开外层限制，内容自然撑开 */
-@media (max-width: 899px) {
-  .summary-content-wrapper {
-    max-height: none;
-    overflow: visible;
-  }
-  .smr-group {
-    padding: 6px 16px 4px;
-  }
-
-  /* ── 胶囊行 ── */
-  .smr-chip-row {
-    padding-bottom: 0px;
-  }
-}
-
 /* ── 单个胶囊 ── */
 .smr-chip {
   display: inline-flex;
@@ -1326,7 +1303,7 @@ main {
 }
 
 .smr-sub-header:hover * {
-  color: var(--accent);
+  color: var(--fg);
   opacity: 1;
 }
 
@@ -1358,15 +1335,6 @@ main {
   padding-bottom: 10px;
 }
 
-/* 中屏：地图高度增加，放开限制让内容自然撑开 */
-@media (max-width: 899px) {
-  .smr-section.smr-sub-open .smr-sub-body {
-    max-height: none;
-    overflow: visible;
-    padding-top: 12px;
-  }
-}
-
 /* ── 迷你地图 ── */
 .smr-map-slot {
   width: 100%;
@@ -1376,21 +1344,6 @@ main {
   overflow: hidden;
   background: #060d1a;
   position: relative;
-}
-
-/* 中屏：侧边栏折叠后主区域变宽，地图适度加高 */
-@media (max-width: 899px) {
-  .smr-map-slot {
-    aspect-ratio: 16 / 7;
-    max-height: none;
-  }
-}
-
-/* 小屏 */
-@media (max-width: 576px) {
-  .smr-map-slot {
-    aspect-ratio: 16 / 8;
-  }
 }
 
 /* ── 大区色条 ── */
@@ -1597,18 +1550,28 @@ main {
 }
 
 .analysis-feather-tip.collapsed .summary-toggle-header {
-  background-color: color-mix(in srgb, var(--bg-hover) 40%, transparent) ; /* 展开时背景色 */
-  border-bottom: 1px solid var(--bg-hover);
+  background-color: color-mix(
+    in srgb,
+    var(--bg-summary) 80%,
+    transparent
+  ); /* 展开时背景色 */
 }
 
 .analysis-feather-tip.collapsed .summary-toggle-header:hover {
-  background-color: color-mix(in srgb, var(--bg-hover) 80%, transparent) ; /* 展开时背景色 */
-  border-bottom: 1px solid var(--bg-hover);
+  background-color: color-mix(
+    in srgb,
+    var(--bg-hover) 80%,
+    transparent
+  ); /* 展开时背景色 */
 }
 
 /* 展开状态（没有 collapsed 类时） */
 .analysis-feather-tip:not(.collapsed) .summary-toggle-header {
-  background-color: color-mix(in srgb, var(--bg-hover) 60%, transparent) ; /* 展开时背景色 */
+  background-color: color-mix(
+    in srgb,
+    var(--bg-hover) 60%,
+    transparent
+  ); /* 展开时背景色 */
   border-bottom: 1px solid var(--bg-hover);
 }
 
@@ -1620,18 +1583,11 @@ main {
   transform: rotate(-90deg);
 }
 
-/* 移动端微调 */
-@media (max-width: 899px) {
-  .tip-content {
-    font-size: 12px;
-  }
-}
-
 .btn-icon {
   color: var(--muted);
 }
 
-.icon-md {
+.title-icon {
   width: 16px;
   height: 16px;
   stroke-width: 1;
@@ -1639,9 +1595,10 @@ main {
 }
 
 .icon-md-btn {
-  width: 16px;
-  height: 16px;
-  stroke-width: 1.4;
+  width: 14px;
+  height: 14px;
+  stroke-width: 2;
+  color: color-mix(in srgb, var(--bg-hover) 100%, var(--fg) 100%);
 }
 
 .btn-round {
@@ -2425,93 +2382,58 @@ main {
 .login-hidden {
   display: none !important;
 }
-
-/* 响应式 */
+/* ════════════════════════════════════════════════════════════
+   大屏 ≥ 900px
+════════════════════════════════════════════════════════════ */
 @media (min-width: 900px) {
   .theme-label {
     display: inline-block;
   }
-
   .footer {
     display: none;
   }
 }
 
-@media (max-width: 375px) {
-  /* ── mobileBtns：小屏右侧操作按钮组 ── */
-  .mobileBtns {
-    position: relative;
-    right: -2px;
-    gap: 1px;
+/* ════════════════════════════════════════════════════════════
+   中屏 ≥ 640px
+════════════════════════════════════════════════════════════ */
+@media (min-width: 640px) {
+  .history-full {
+    display: inline;
   }
-
-  .mobileBtns .btn.small {
-    width: 30px;
-    height: 24px;
-  }
-
-  .idle {
-    width: 100%; /* 跟随 project-name 宽度 */
-    text-align: justify; /* ← 两端对齐 */
-    text-align-last: justify; /* 末行也强制两端对齐（单行时必须） */
-    white-space: nowrap; /* 保持单行，否则 justify 按换行分布 */
-    padding-right: 6px;
+  .history-short {
+    display: none;
   }
 }
 
+/* ════════════════════════════════════════════════════════════
+   小屏 ≤ 899px
+════════════════════════════════════════════════════════════ */
 @media (max-width: 899px) {
+  :root {
+    --gap: 10px;
+  }
+  /* ── 顶栏 / 导航 ── */
   .logo {
     width: 38px;
     height: 38px;
-    /* margin-bottom: 4px; */
   }
   .project-name {
     margin-bottom: -1px;
   }
-
   .slogan {
     font-weight: 300;
     opacity: 0.8;
     padding-right: 1px;
   }
-  .toast {
-    border-radius: 6px;
-    border-left: 6px solid transparent;
-    /* 默认透明，后面按类型覆盖 */
-  }
-
-  .toast .progress-bar {
-    height: 1px;
-  }
-
   .siderbar-wrapper {
     display: none;
   }
 
-  #shareMenu {
-    /* transform: translate(-50%, -50%) scale(1.2); */
-    z-index: 2000;
-  }
-
-  /* #projectMenu.active {
-    display: none;
-  } */
-
-  /* 开始&结束检测按钮 */
+  /* ── 移动端按钮 ── */
   .toggle-btn {
     margin: 0 -4px 0 0;
   }
-
-  /* 历史检测结果 */
-  .history-placeholder {
-    margin: 0;
-  }
-
-  .history-title {
-    margin-top: 0;
-  }
-
-  /* 小屏显示退出和分享按钮 */
   #btnlogoutMobile,
   #btnShare,
   #btnSubStore,
@@ -2521,32 +2443,27 @@ main {
     display: inline-block;
   }
 
-  /* 移动设备恢复滚动条 */
+  /* ── 布局 ── */
   html,
   body {
     overflow: auto;
   }
-
   main {
     height: auto;
   }
-
-  /* 网格样式 */
   .layout {
     grid-template-columns: 1fr;
   }
-
   .content {
     display: flex;
     flex-direction: column;
   }
-
   .content .progressCard {
     flex: 0 0 auto;
     overflow: hidden;
   }
 
-  /* 指定移动设备高度 */
+  /* ── 卡片 ── */
   .logsCard,
   .editorCard {
     height: calc(100vh - var(--mobile-subtract));
@@ -2555,13 +2472,68 @@ main {
     display: flex;
     flex-direction: column;
   }
-
   .logs-wrapper {
     font-size: 13px;
     flex: 1;
     overflow-y: auto;
   }
 
+  /* ── 历史记录 ── */
+  .history-placeholder {
+    margin: 0;
+  }
+  .history-title {
+    margin-top: 0;
+  }
+
+  /* ── Toast ── */
+  .toast {
+    border-radius: 6px;
+    border-left: 6px solid transparent;
+  }
+  .toast .progress-bar {
+    height: 1px;
+  }
+
+  /* ── 提示 ── */
+  .tip-content {
+    font-size: 12px;
+  }
+
+  /* ── 编辑器：避免 iOS 自动放大 ── */
+  #configEditor,
+  .cm-editor {
+    font-size: 16px;
+  }
+  .cm-lineNumbers {
+    font-size: 11px !important;
+    font-weight: 400;
+  }
+
+  /* ── 地图 ── */
+  .smr-map-slot {
+    aspect-ratio: 16 / 7;
+    max-height: none;
+  }
+
+  /* ── Summary ── */
+  .smr-section.smr-sub-open .smr-sub-body {
+    max-height: none;
+    overflow: visible;
+    padding-top: 12px;
+  }
+  .summary-content-wrapper {
+    max-height: none;
+    overflow: visible;
+  }
+  .smr-group {
+    padding: 6px 16px 4px;
+  }
+  .smr-chip-row {
+    padding-bottom: 0;
+  }
+
+  /* ── Footer ── */
   .footer {
     display: inline-flex;
     flex-direction: column;
@@ -2573,12 +2545,10 @@ main {
     color: var(--muted);
     font-size: 12px;
   }
-
   .footer-icons {
     display: flex;
     gap: 20px;
   }
-
   .footer-icon {
     width: 22px;
     height: 22px;
@@ -2586,38 +2556,53 @@ main {
     transition: transform 0.2s ease;
     filter: invert(var(--invert));
   }
-
   .footer-icon:hover {
     transform: scale(1.15);
   }
-
   .footer-copy a {
     color: inherit;
-    /* 跟随父元素颜色 */
     text-decoration: none;
-    /* 去掉下划线 */
     font-weight: 500;
-    /* 稍微加粗，保证可读性 */
     transition: color 0.2s ease;
   }
-
   .footer-copy a:hover {
     color: var(--accent);
-    /* 悬停时用主题强调色 */
     text-decoration: underline;
-    /* 悬停时加下划线，提示可点击 */
   }
 
-  /* 编辑器 */
-  #configEditor,
-  .cm-editor {
-    /* 移动设备保证 16px 以避免 iOS 放大 */
-    font-size: 16px;
+  /* ── 弹窗 ── */
+  #shareMenu {
+    z-index: 2000;
   }
+}
 
-  .cm-lineNumbers {
-    font-size: 11px !important;
-    /* 小字体 */
-    font-weight: 400;
+/* ════════════════════════════════════════════════════════════
+   小屏 ≤ 576px
+════════════════════════════════════════════════════════════ */
+@media (max-width: 576px) {
+  .smr-map-slot {
+    aspect-ratio: 16 / 8;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   最小屏 ≤ 375px
+════════════════════════════════════════════════════════════ */
+@media (max-width: 375px) {
+  .mobileBtns {
+    position: relative;
+    right: -2px;
+    gap: 1px;
+  }
+  .mobileBtns .btn.small {
+    width: 30px;
+    height: 24px;
+  }
+  .idle {
+    width: 100%;
+    text-align: justify;
+    text-align-last: justify;
+    white-space: nowrap;
+    padding-right: 6px;
   }
 }
