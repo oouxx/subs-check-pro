@@ -629,11 +629,11 @@ const VALUE_TRANSFORM = {
 const SPECIAL_INPUT_VALUES = {
   'speed-test-url': [
     { value: 'random', label: '随机测速', hint: '从内置地址列表随机选择测速目标' },
-    { value: '', label: '关闭测速', hint: '当前留空，不进行下载测速，仅测活' },
+    { value: '', label: '关闭测速', hint: '留空，不进行下载测速' },
   ],
   'system-proxy': [
     { value: 'direct', label: '直连', hint: '强制直连，不使用任何系统代理' },
-    { value: '', label: '自动', hint: '当前留空，自动检测系统代理' },
+    { value: '', label: '自动', hint: '留空，自动检测系统代理' },
   ],
   'sub-store-port': [
     { value: '', label: '禁用 Sub Store 服务', hint: '未设置端口，Sub Store 服务禁用' },
