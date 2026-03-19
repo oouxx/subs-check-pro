@@ -173,6 +173,14 @@ func (app *App) registerStaticRoutes(router *gin.Engine, outputPath string) {
 	// 受保护静态文件映射（需鉴权）
 	authGroup := router.Group("/")
 	authGroup.Use(app.authMiddleware())
+
+	// 自定义响应头中间件，好像用不上
+	// authGroup.Use(func(c *gin.Context) {
+	// 	c.Header("subscription-userinfo", buildSubscriptionInfo())
+	// 	c.Header("Cache-Control", "no-store")
+	// 	c.Next()
+	// })
+
 	protectedFiles := map[string]string{
 		"/all.yaml":     "all.yaml",     // 最新节点
 		"/history.yaml": "history.yaml", // 历史节点

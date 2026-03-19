@@ -77,6 +77,8 @@ func serveFileNoCache(c *gin.Context, absPath string) {
 		return
 	}
 	c.Header("Cache-Control", "no-store")
+	// 为文件分享添加订阅信息响应头
+	c.Header("subscription-userinfo", buildSubscriptionInfo())
 	c.Data(http.StatusOK, "text/plain; charset=utf-8", data)
 }
 

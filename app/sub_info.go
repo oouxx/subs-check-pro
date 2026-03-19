@@ -28,7 +28,7 @@ const (
 
 	// expireUnix = 2077-06-01 00:00:00 UTC
 	// 赛博朋克儿童节 🎉
-	expireUnix int64 = 3_376_684_800 // time.Date(2077,6,1,0,0,0,0,time.UTC).Unix()
+	expireUnix int64 = 3389731200 // time.Date(2077,6,1,0,0,0,0,time.UTC).Unix()
 
 	planName = "Subs-Check-Pro"
 	appURL   = "https://github.com/sinspired/subs-check-pro"
