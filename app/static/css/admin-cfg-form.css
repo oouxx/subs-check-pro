@@ -607,16 +607,77 @@
 /* ════════════════════════════════════════════════════════════
    特殊保留值高亮
 ════════════════════════════════════════════════════════════ */
-/* ── 特殊值容器 ── */
+/* ── 特殊值容器：纵向排列，输入框 + 胶囊行 ── */
 .cfg-special-wrap {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  gap: 5px;
   width: 100%;
 }
-.cfg-special-wrap .cfg-input {
-  flex: 1;
-  min-width: 0;
+
+/* 输入框包裹层，用于定位右侧提示 */
+.cfg-special-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+.cfg-special-input-wrap .cfg-input {
+  width: 100%;
+  padding-right: 36px; /* 为右侧提示留空 */
+}
+
+/* 右侧状态提示（绝对定位，覆盖在输入框内） */
+.cfg-special-hint {
+  position: absolute;
+  right: 10px;
+  font-size: 10.5px;
+  font-style: italic;
+  color: color-mix(in srgb, var(--accent) 55%, var(--muted));
+  pointer-events: none;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(4px);
+  transition: opacity 0.15s, transform 0.15s;
+}
+.cfg-special-hint.visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* 胶囊行 */
+.cfg-special-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* 单个胶囊 */
+.cfg-special-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.13s, border-color 0.13s, background 0.13s;
+}
+.cfg-special-chip:hover {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+.cfg-special-chip.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  font-weight: 600;
 }
 
 /* ── 匹配特殊值时：输入框仅做轻微着色，不加粗，重心让给徽章 ── */
@@ -682,6 +743,7 @@
   display: flex;
   flex-direction: column;
   gap: 5px;
+  margin-top: 5px;
 }
 
 /* ── 着色展示层 ── */
