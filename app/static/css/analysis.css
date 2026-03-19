@@ -153,7 +153,7 @@ body {
 
 .topbar-btn:hover {
   color: var(--fg);
-  border-color: var(--fg);
+  border-color: color-mix(in srgb, var(--fg) 30%, transparent);
   background: color-mix(in srgb, var(--fg) 6%, transparent);
 }
 
@@ -2071,6 +2071,11 @@ code {
 
   .tab-bar {
     display: flex;
+    background-color: color-mix(
+    in srgb,
+    var(--bg-hover) 50%,
+    transparent
+  );
   }
 
   .topbar-meta {
